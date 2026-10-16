@@ -1,12 +1,15 @@
 import { NextResponse } from "next/server";
 import { FalkorDB } from "falkordb";
-import { correctMemory, forgetMemory, getFalkorConfig, normalizeUserId } from "@/lib/persistence";
+import { correctMemory, forgetMemory, getFalkorConfig } from "@/lib/persistence";
+import { getAuthenticatedIdentity } from "@/lib/auth";
 
 function validMemoryId(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.trim().length <= 200;
 }
 
 export async function POST(request: Request) {
+  const authResult = await getAuthenticatedIdentity();
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   const config = getFalkorConfig(process.env);
   if (!config) return NextResponse.json({ error: "FalkorDB configuration is missing from .env.local." }, { status: 500 });
 
@@ -15,7 +18,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const action = body?.action;
     const memoryId = body?.memoryId;
-    const userId = normalizeUserId(body?.userId);
+    const userId = authResult.identity.userId;
     if (action !== "correct" && action !== "forget") return NextResponse.json({ error: "Action must be 'correct' or 'forget'." }, { status: 400 });
     if (!validMemoryId(memoryId)) return NextResponse.json({ error: "A specific memoryId is required." }, { status: 400 });
     if (action === "forget" && body?.confirmed !== true) return NextResponse.json({ error: "Forgetting requires confirmed: true for the specific memoryId." }, { status: 400 });

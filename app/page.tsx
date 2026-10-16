@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { SignInButton, SignUpButton, UserButton, useAuth } from "@clerk/nextjs";
 
 type Message = { role: "user" | "assistant"; content: string; memoryId?: string };
 type ChatSession = { id: string; title: string; createdAt: number; updatedAt: number; messages: Message[] };
 type Theme = "dark" | "light";
-type AuthMode = "login" | "signup";
 type UploadPreview = { name: string; kind: string; size: number; text: string; headings: string[]; tables: { title: string; rows: string[][] }[]; references: string[]; truncated: boolean };
 
 const acceptedFiles = ".pdf,.docx,.pptx,.txt,.md,.csv,.jpg,.jpeg,.png,.webp";
@@ -96,11 +96,13 @@ function renderMarkdown(content: string) {
     flushList(); paragraph.push(rawLine);
   });
   flushParagraph(); flushList();
-  if (codeLines) blocks.push(<pre className="markdown-code-block" key={blocks.length}><code>{codeLines.join("\n")}</code></pre>);
+  const remainingCode: string[] | null = codeLines as string[] | null;
+  if (remainingCode) blocks.push(<pre className="markdown-code-block" key={blocks.length}><code>{remainingCode.join("\n")}</code></pre>);
   return <div className="markdown-content">{blocks}</div>;
 }
 
 export default function Home() {
+  const { isSignedIn } = useAuth();
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [activeId, setActiveId] = useState("");
   const [input, setInput] = useState("");
@@ -109,10 +111,6 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatSearch, setChatSearch] = useState("");
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-  const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
-  const [authNotice, setAuthNotice] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
@@ -134,8 +132,6 @@ export default function Home() {
     const nextTheme = storedTheme === "light" || storedTheme === "dark" ? storedTheme : window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
-    const storedProfile = window.localStorage.getItem("graph-memory-profile");
-    if (storedProfile) setProfile(JSON.parse(storedProfile));
     setMounted(true);
   }, []);
 
@@ -243,19 +239,6 @@ export default function Home() {
     }
   }
 
-  function submitAuth(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") || "").trim();
-    const name = String(form.get("name") || "").trim() || email.split("@")[0] || "Explorer";
-    if (!email) return;
-    const nextProfile = { name, email };
-    setProfile(nextProfile);
-    window.localStorage.setItem("graph-memory-profile", JSON.stringify(nextProfile));
-    setAuthNotice(authMode === "signup" ? "Your local workspace profile is ready." : "Welcome back to your local workspace.");
-    window.setTimeout(() => { setAuthOpen(false); setAuthNotice(""); }, 900);
-  }
-
   return (
     <main className="app-shell">
       <div className={`mobile-scrim ${sidebarOpen ? "is-visible" : ""}`} onClick={() => setSidebarOpen(false)} aria-hidden="true" />
@@ -264,14 +247,14 @@ export default function Home() {
         <button type="button" className="new-chat-button" onClick={startNewChat}><span className="new-chat-plus">＋</span> New chat <kbd>⌘ K</kbd></button>
         <nav className="workspace-nav" aria-label="Workspace navigation"><p className="nav-label">Workspace</p><Link href="/" className="workspace-link workspace-link-active"><span className="nav-icon">✦</span><span>Memory chat</span><span className="nav-arrow">⌘ 1</span></Link><Link href="/graph" className="workspace-link"><span className="nav-icon">◌</span><span>Graph explorer</span><span className="nav-arrow">⌘ 2</span></Link></nav>
         <div className="chat-history"><div className="history-heading"><p className="nav-label">Your chats</p><button type="button" className="icon-button small" aria-label="Search chats" onClick={() => document.getElementById("chat-search")?.focus()}>⌕</button></div><div className="search-field"><span>⌕</span><input id="chat-search" value={chatSearch} onChange={(event) => setChatSearch(event.target.value)} placeholder="Search chats" aria-label="Search chats" /></div><div className="history-list">{visibleSessions.length ? visibleSessions.map((session) => <button key={session.id} type="button" className={`history-item ${activeChat?.id === session.id ? "history-item-active" : ""}`} onClick={() => selectChat(session.id)}><span className="history-item-title">{session.title}</span><span className="history-item-date">{formatChatDate(session.updatedAt)}</span></button>) : <p className="empty-history">No chats found</p>}</div></div>
-        <div className="sidebar-footer"><div className="plan-card"><div className="plan-card-icon">✦</div><div><strong>Memory is growing</strong><p>Connect more facts to make recall richer.</p></div></div><div className="footer-row"><button type="button" className="profile-button" onClick={() => { setAuthMode("login"); setAuthOpen(true); }}><span className="profile-avatar">{profile?.name?.[0]?.toUpperCase() || "A"}</span><span className="profile-copy"><strong>{profile?.name || "Guest explorer"}</strong><small>{profile?.email || "Sign in to sync"}</small></span></button><button type="button" className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>{theme === "dark" ? "☼" : "◐"}</button></div></div>
+        <div className="sidebar-footer"><div className="plan-card"><div className="plan-card-icon">✦</div><div><strong>Memory is growing</strong><p>Connect more facts to make recall richer.</p></div></div><div className="footer-row">{isSignedIn ? <div className="profile-button"><UserButton /></div> : <SignInButton mode="modal"><button type="button" className="profile-button"><span className="profile-avatar">A</span><span className="profile-copy"><strong>Guest explorer</strong><small>Sign in to sync</small></span></button></SignInButton>}<button type="button" className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}>{theme === "dark" ? "☼" : "◐"}</button></div></div>
       </aside>
 
       <section className="main-workspace">
-        <header className="topbar"><div className="topbar-left"><button type="button" className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">☰</button><div className="mobile-page-title"><span className="status-dot" /> Synapse</div><div className="model-picker"><span className="model-orb" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="synapse-model-stroke" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stopColor="#8BE9E1"/><stop offset=".52" stopColor="#9A91FF"/><stop offset="1" stopColor="#6E9CFF"/></linearGradient></defs><path d="M10 8.5 16 5l6 3.5v7L16 19l-6-3.5v-7Z" stroke="url(#synapse-model-stroke)" strokeWidth="1.8" strokeLinejoin="round"/><path d="m10 15.5-4 2.3v6.1l5.3 3.1 5.3-3.1v-4.8M22 15.5l4 2.3v6.1l-5.3 3.1-4.1-2.4" stroke="url(#synapse-model-stroke)" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="16" cy="12" r="2.2" fill="#F5F7FF"/><circle cx="6" cy="17.8" r="1.7" fill="#8BE9E1"/><circle cx="26" cy="17.8" r="1.7" fill="#9A91FF"/><circle cx="16" cy="24.9" r="1.7" fill="#7FAEFF"/></svg></span><span><strong>Synapse</strong><small>Automatic context</small></span><span className="chevron">⌄</span></div></div><div className="topbar-actions"><span className="connection-status"><i /> <span>FalkorDB connected</span></span><button type="button" className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle color theme">{theme === "dark" ? "☼" : "◐"}</button><button type="button" className="share-button" onClick={() => navigator.clipboard?.writeText(window.location.href)}><span>↗</span> Share</button><button type="button" className="top-avatar" onClick={() => { setAuthMode("login"); setAuthOpen(true); }}>{profile?.name?.[0]?.toUpperCase() || "A"}</button></div></header>
+        <header className="topbar"><div className="topbar-left"><button type="button" className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="Open sidebar">☰</button><div className="mobile-page-title"><span className="status-dot" /> Synapse</div><div className="model-picker"><span className="model-orb" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="synapse-model-stroke" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stopColor="#8BE9E1"/><stop offset=".52" stopColor="#9A91FF"/><stop offset="1" stopColor="#6E9CFF"/></linearGradient></defs><path d="M10 8.5 16 5l6 3.5v7L16 19l-6-3.5v-7Z" stroke="url(#synapse-model-stroke)" strokeWidth="1.8" strokeLinejoin="round"/><path d="m10 15.5-4 2.3v6.1l5.3 3.1 5.3-3.1v-4.8M22 15.5l4 2.3v6.1l-5.3 3.1-5.3-3.1v-4.8" stroke="url(#synapse-model-stroke)" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="16" cy="12" r="2.2" fill="#F5F7FF"/><circle cx="6" cy="17.8" r="1.7" fill="#8BE9E1"/><circle cx="26" cy="17.8" r="1.7" fill="#9A91FF"/><circle cx="16" cy="24.9" r="1.7" fill="#7FAEFF"/></svg></span><span><strong>Synapse</strong><small>Automatic context</small></span><span className="chevron">⌄</span></div></div><div className="topbar-actions"><span className="connection-status"><i /> <span>FalkorDB connected</span></span><button type="button" className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle color theme">{theme === "dark" ? "☼" : "◐"}</button><button type="button" className="share-button" onClick={() => navigator.clipboard?.writeText(window.location.href)}><span>↗</span> Share</button>{isSignedIn ? <UserButton /> : <SignInButton mode="modal"><button type="button" className="top-avatar">A</button></SignInButton>}</div></header>
         <div className="chat-viewport"><div className="chat-column">
           <div className="chat-heading"><div className="heading-kicker"><span className="sparkle">✦</span> Your private knowledge layer</div><h1>{activeChat?.title === "New memory chat" ? "What would you like to remember?" : activeChat?.title}</h1><p>Store the details behind your work, then ask questions that span people, projects, and relationships.</p></div>
-          <div className="message-list" aria-live="polite" aria-label="Conversation">{activeChat?.messages.map((message, index) => <div key={`${activeChat.id}-${message.role}-${index}`} className={`message-row ${message.role === "user" ? "message-row-user" : ""}`}><div className={`message-avatar ${message.role === "user" ? "user-avatar" : "agent-avatar"}`}>{message.role === "user" ? (profile?.name?.[0]?.toUpperCase() || "A") : "✦"}</div><div className="message-content"><div className="message-meta"><strong>{message.role === "user" ? profile?.name || "You" : "Synapse"}</strong><span>{message.role === "user" ? "Just now" : "Agent response"}</span></div><div className={`message-text ${message.role === "user" ? "message-text-user" : ""}`}>{message.role === "assistant" ? renderMarkdown(message.content) : message.content}</div></div></div>)}{loading && <div className="message-row" role="status"><div className="message-avatar agent-avatar">✦</div><div className="message-content"><div className="message-meta"><strong>Synapse</strong><span>Thinking</span></div><div className="loading-line"><span /><span /><span /></div></div></div>}<div ref={endRef} /></div>
+          <div className="message-list" aria-live="polite" aria-label="Conversation">{activeChat?.messages.map((message, index) => <div key={`${activeChat.id}-${message.role}-${index}`} className={`message-row ${message.role === "user" ? "message-row-user" : ""}`}><div className={`message-avatar ${message.role === "user" ? "user-avatar" : "agent-avatar"}`}>{message.role === "user" ? "A" : "✦"}</div><div className="message-content"><div className="message-meta"><strong>{message.role === "user" ? "You" : "Synapse"}</strong><span>{message.role === "user" ? "Just now" : "Agent response"}</span></div><div className={`message-text ${message.role === "user" ? "message-text-user" : ""}`}>{message.role === "assistant" ? renderMarkdown(message.content) : message.content}</div></div></div>)}{loading && <div className="message-row" role="status"><div className="message-avatar agent-avatar">✦</div><div className="message-content"><div className="message-meta"><strong>Synapse</strong><span>Thinking</span></div><div className="loading-line"><span /><span /><span /></div></div></div>}<div ref={endRef} /></div>
           {activeChat?.messages.length === 1 && <div className="starter-grid">{starterPrompts.map((prompt) => <button key={prompt.text} type="button" className="starter-card" onClick={() => setInput(prompt.text)}><span className="starter-icon">{prompt.icon}</span><span><strong>{prompt.label}</strong><small>{prompt.text}</small></span><span className="starter-arrow">↗</span></button>)}</div>}
           <form onSubmit={sendMessage} className="composer-wrap">
             {uploadError && <p className="upload-error" role="alert">{uploadError}</p>}
@@ -300,7 +283,7 @@ export default function Home() {
         </div></div>
       </section>
 
-      {authOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setAuthOpen(false); }}><div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button type="button" className="modal-close icon-button" onClick={() => setAuthOpen(false)} aria-label="Close account dialog">×</button><div className="auth-mark">✦</div><h2 id="auth-title">{authMode === "login" ? "Welcome back" : "Create your workspace"}</h2><p className="auth-subtitle">{authMode === "login" ? "Sign in to keep your memory workspace close." : "Start building a private layer for your work."}</p><div className="auth-tabs"><button type="button" className={authMode === "login" ? "auth-tab-active" : ""} onClick={() => setAuthMode("login")}>Sign in</button><button type="button" className={authMode === "signup" ? "auth-tab-active" : ""} onClick={() => setAuthMode("signup")}>Create account</button></div><form onSubmit={submitAuth} className="auth-form">{authMode === "signup" && <label>Full name<input name="name" type="text" placeholder="Alex Morgan" /></label>}<label>Email address<input name="email" type="email" placeholder="you@example.com" required /></label><label>Password<input name="password" type="password" placeholder="••••••••" required /></label><button type="submit" className="auth-submit">{authMode === "login" ? "Sign in" : "Create account"}<span>→</span></button></form><p className="auth-note">This visual account flow stores a local profile in your browser. Connect your auth provider to enable secure account sync.</p>{authNotice && <p className="auth-success">{authNotice}</p>}</div></div>}
+      {!isSignedIn && <div className="auth-cta"><p>Sign in to make your memory graph private and persistent.</p><SignInButton mode="modal"><button type="button" className="auth-submit">Sign in <span>→</span></button></SignInButton><SignUpButton mode="modal"><button type="button" className="auth-note">Create an account</button></SignUpButton></div>}
     </main>
   );
 }

@@ -7,11 +7,12 @@ import { dedupeExtractedEntities, dedupeRelationships, resolveEntityIdentity } f
 import type { EntityType, KnownEntity } from "@/lib/identity";
 import { buildConversationContext, sanitizeConversation } from "@/lib/conversation";
 import { executeGraphTool, getCurrentDateTime, graphToolDeclarations, MAX_TOOL_EXECUTIONS } from "@/lib/agent-tools";
-import { getFalkorConfig, linkMemoryToEntity, normalizeUserId, readGraphEvidence, readRecentMemories, scopeEntityKey, writeEntity, writeMemory, writeRelationship } from "@/lib/persistence";
+import { getFalkorConfig, linkMemoryToEntity, readGraphEvidence, readRecentMemories, scopeEntityKey, writeEntity, writeMemory, writeRelationship } from "@/lib/persistence";
 import type { GraphQueryRunner } from "@/lib/persistence";
 import { attachmentPromptContext, extractUploadedFiles, FileExtractionError, isUploadFile, readBoundedUploadForm, tooLargeRequest, verifyAttachmentToken } from "@/lib/file-extraction";
 import { getChatMemoryPolicy, graphUnavailableGuidance } from "@/lib/chat-policy";
 import { AIProviderError, generateTextWithFallback, getPrimaryAIProvider } from "@/lib/ai-router";
+import { getAuthenticatedIdentity } from "@/lib/auth";
 
 const allowedTypes = new Set<EntityType>(["Person", "Project", "Team", "Skill", "Organization", "Preference", "Place", "Other"]);
 const allowedRelations = new Set(["BUILDS", "MEMBER_OF", "TEAMMATE_OF", "KNOWS", "WORKS_ON", "LIKES", "USES", "RELATED_TO", "HANDLES", "LEADS", "CREATED", "PART_OF", "STUDIES", "LOCATED_IN", "HAS_SKILL", "COLLABORATES_WITH"]);
@@ -42,9 +43,7 @@ async function generateGroundedAnswer(
 ) {
   const contents: Content[] = [{ role: "user", parts: [{ text: prompt }] }];
   let toolExecutions = 0;
-  const availableTools = graph
-    ? graphToolDeclarations
-    : graphToolDeclarations.filter((tool) => tool.name === "get_current_datetime");
+  const availableTools = graph ? graphToolDeclarations : [];
   const toolConfig = {
     tools: [{ functionDeclarations: availableTools }],
     toolConfig: { functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO } },
@@ -75,6 +74,9 @@ async function generateGroundedAnswer(
 }
 
 export async function POST(request: Request) {
+  const authResult = await getAuthenticatedIdentity();
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const authenticatedUserId = authResult.identity.userId;
   const apiKey = process.env.GEMINI_API_KEY || "";
   const config = getFalkorConfig(process.env);
   if (!apiKey && !process.env.GROQ_API_KEY && !process.env.OPENROUTER_API_KEY) return NextResponse.json({ error: "Configure at least one supported AI provider API key in the server environment." }, { status: 503 });
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
         if (typeof conversationValue === "string" && conversationValue) {
           try { formConversation = JSON.parse(conversationValue); } catch { return NextResponse.json({ error: "Conversation context is malformed." }, { status: 400 }); }
         }
-        body = { message: form.get("message"), conversation: formConversation, userId: form.get("userId"), attachmentToken: form.get("attachmentToken") };
+        body = { message: form.get("message"), conversation: formConversation, attachmentToken: form.get("attachmentToken") };
       } else {
         const parsed: unknown = await request.json();
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return NextResponse.json({ error: "The chat request is malformed." }, { status: 400 });
@@ -115,21 +117,21 @@ export async function POST(request: Request) {
         reply: "The current date and time is " + current.localDateTime + ".",
         memoriesUsed: 0, graphEvidenceUsed: 0, toolExecutions: 1, contextTurnsUsed: 0,
         contextMemoryId: null, memorySaved: false, memoryId: null,
-        userId: normalizeUserId(body.userId), graphStatus: "not_requested",
+        userId: authenticatedUserId, graphStatus: "not_requested",
         retrievalStatus: "not_requested", memoryPolicy: "not_persisted",
         entitiesCreated: 0, relationshipsCreated: 0, attachments: [],
       });
     }
     if (attachmentToken && uploadFiles.length) return NextResponse.json({ error: "Send either the signed attachment preview or the original files, not both." }, { status: 400 });
     const extractedFiles = attachmentToken
-      ? verifyAttachmentToken(attachmentToken, process.env.UPLOAD_TOKEN_SECRET || apiKey)
+      ? verifyAttachmentToken(attachmentToken, process.env.UPLOAD_TOKEN_SECRET || apiKey, authenticatedUserId)
       : uploadFiles.length ? await extractUploadedFiles(uploadFiles, { apiKey }) : [];
     const attachmentContext = attachmentPromptContext(extractedFiles);
     const modelInput = attachmentContext ? `${userMessage}\n\n${attachmentContext}` : userMessage;
     const conversation = sanitizeConversation(body.conversation);
     const conversationContext = buildConversationContext(userMessage, conversation);
     const previousUserTurn = [...conversation].reverse().find((turn) => turn.role === "user");
-    const userId = normalizeUserId(body.userId);
+    const userId = authenticatedUserId;
     const policy = getChatMemoryPolicy(userMessage, extractedFiles.length > 0);
     const memoryId = randomUUID();
     const capturedAt = Date.now();

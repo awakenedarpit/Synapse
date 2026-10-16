@@ -174,8 +174,9 @@ test("reads multipart forms through a byte-bounded stream", async () => {
 
 test("signs extraction previews and rejects tampered or expired tokens", async () => {
   const [file] = await extractUploadedFiles([uploadFile("notes.txt", "text/plain", Buffer.from("private note"))]);
-  const token = createAttachmentToken([file], "test-secret", 1_000);
-  assert.equal(verifyAttachmentToken(token, "test-secret", 1_001)[0].text, "private note");
-  assert.throws(() => verifyAttachmentToken(`${token.slice(0, -1)}x`, "test-secret", 1_001), /invalid or expired/i);
-  assert.throws(() => verifyAttachmentToken(token, "test-secret", 601_001), /invalid or expired/i);
+  const token = createAttachmentToken([file], "test-secret", "user_a", 1_000);
+  assert.equal(verifyAttachmentToken(token, "test-secret", "user_a", 1_001)[0].text, "private note");
+  assert.throws(() => verifyAttachmentToken(token, "test-secret", "user_b", 1_001), /invalid or expired/i);
+  assert.throws(() => verifyAttachmentToken(`${token.slice(0, -1)}x`, "test-secret", "user_a", 1_001), /invalid or expired/i);
+  assert.throws(() => verifyAttachmentToken(token, "test-secret", "user_a", 601_001), /invalid or expired/i);
 });

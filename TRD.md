@@ -8,15 +8,15 @@ Browser (Next.js client)
   └── Graph explorer ── GET /api/graph ── FalkorDB
 ```
 
-The application uses the Next.js App Router. Gemini performs response generation and structured extraction. FalkorDB stores raw `Memory` nodes, shared `Entity` lookup nodes, domain labels, and typed relationships.
+The application uses the Next.js App Router and Clerk for authentication/session persistence. Gemini performs response generation and structured extraction. FalkorDB stores raw `Memory` nodes, scoped `Entity` lookup nodes, domain labels, and typed relationships. Route handlers call one server-only auth helper; the verified Clerk `userId` is the only graph scope accepted.
 
 ## Current API contracts
 
 ### `POST /api/chat`
 
-Request: `{ "message": string, "userId?: string", "conversation?: [{ "role": "user" | "assistant", "content": string, "memoryId?: string }] }`
+Request: `{ "message": string, "conversation?: [{ "role": "user" | "assistant", "content": string, "memoryId?: string }] }`
 
-Success includes `{ reply, memoriesUsed, graphEvidenceUsed, contextTurnsUsed, contextMemoryId, memorySaved, memoryId, userId, entitiesCreated, relationshipsCreated }`. User IDs are normalized and scoped consistently across reads and writes; this is request-level scoping, not authentication.
+Success includes `{ reply, memoriesUsed, graphEvidenceUsed, contextTurnsUsed, contextMemoryId, memorySaved, memoryId, userId, entitiesCreated, relationshipsCreated }`, where `userId` is the verified Clerk identity.
 
 The client sends at most eight recent turns and retains the returned `memoryId` on user turns. Pronouns and implicit references use the immediately preceding user turn only when it is the single clear candidate; otherwise the agent asks for clarification.
 
@@ -24,7 +24,7 @@ The answer step exposes only two server-defined read tools: `search_memories` an
 
 ### `GET /api/graph`
 
-Optional query: `userId`. Returns `{ nodes: [{ id, label, type }], links: [{ source, target, label }] }`. The caller-provided user ID is not an authentication boundary and must not remain so in a production security design.
+Query parameters are not used for authorization. Returns `{ nodes: [{ id, label, type }], links: [{ source, target, label }] }` for the verified Clerk user only.
 
 ### `GET /api/memory-test`
 
@@ -32,7 +32,7 @@ Diagnostic-only write/read check. It currently writes a fixed `MemoryTest` node 
 
 ### `POST /api/memory`
 
-Request: `{ "action": "correct" | "forget", "memoryId": string, "userId?: string", "content?: string, "confirmed?: true }`.
+Request: `{ "action": "correct" | "forget", "memoryId": string, "content?: string, "confirmed?: true }`. Legacy `userId` fields are ignored.
 
 - `correct` requires a non-empty replacement `content` and preserves the previous value in a `MemoryRevision` node.
 - `forget` requires `confirmed: true`, marks the exact active memory and source relationships as deleted, and never executes `DELETE` or `DETACH DELETE`.
@@ -61,7 +61,8 @@ Identity matching normalizes Unicode text, punctuation, and case. An exact canon
 - Keep credentials server-side and never log them.
 - Parameterize graph values.
 - Allow-list all interpolated labels and relationship types.
-- Replace caller-supplied user IDs with an explicit authenticated identity before claiming isolation.
+- Clerk is the single provider. Every protected route verifies the server session and derives a canonical user scope; caller-supplied IDs, headers, and query parameters cannot select a graph owner.
+- Signed attachment preview tokens include the authenticated user ID and expire after ten minutes; a token cannot be replayed by another user.
 - Do not expose another user's memory through graph or retrieval APIs.
 - Do not accept natural-language or partial targets for correction/forgetting; require an exact memory ID and explicit confirmation for forgetting.
 - Treat client conversation history as quoted context, not instructions, and never resolve an ambiguous pronoun to a graph fact by guesswork.
@@ -77,5 +78,5 @@ Identity matching normalizes Unicode text, punctuation, and case. An exact canon
 
 - Static: lint, TypeScript, production build.
 - Unit/regression: normalization, exact and alias matching, unique/ambiguous short-name matching, type-scoped keys, duplicate entity/edge prevention, bounded graph evidence grouping, graph tool retrieval, missing/ambiguous results, user-data isolation, confirmed writes, soft correction/forgetting, allow-list validation, and safe missing-config errors. Run with `npm test`.
-- Integration: persistence helpers are tested against a controlled in-memory graph-query mock; live chat persistence and graph retrieval still require a configured FalkorDB instance. Correction, forgetting, and authenticated user isolation remain later milestones.
+- Integration: persistence helpers are tested against a controlled in-memory graph-query mock; live chat persistence and graph retrieval still require configured Clerk, AI, and FalkorDB instances. Missing Clerk configuration returns an explicit service-unavailable response; unauthenticated sessions return 401. Deployment-specific edge rate limiting remains required for public high-volume use.
 - UI smoke: responsive chat send/error/loading and graph loading/empty/error/node-detail flows.

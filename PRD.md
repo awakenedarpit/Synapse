@@ -31,6 +31,8 @@ Graph Memory Agent helps a user store meaningful facts in a knowledge graph and 
 ### Privacy and reliability
 
 - Scope memory reads and writes to an explicit authenticated user identity.
+- Use Clerk for sign-up, sign-in, sign-out, and persistent server-verifiable sessions; ignore client-supplied identity values.
+- Bind upload extraction previews to the authenticated user and reject cross-user token replay.
 - Validate dynamic graph labels and relationship types.
 - Preserve existing data during migrations.
 - Provide safe errors when integrations are unavailable.
@@ -47,7 +49,8 @@ Graph Memory Agent helps a user store meaningful facts in a knowledge graph and 
 - M0: documented architecture, baseline checks, risks, and setup.
 - M1: clean production build; polished responsive chat/graph UI; no fake controls.
 - M2: implemented with canonical/type-scoped identity keys, explicit aliases, ambiguity-safe short-name matching, duplicate-resistant entity and relationship writes, and six repeatable regression tests.
-- M3: implemented with shared graph configuration, normalized request-level user scope, traceable memory/entity/relationship provenance, additive legacy compatibility, and controlled persistence integration tests.
+- M3: implemented with shared graph configuration, traceable memory/entity/relationship provenance, additive legacy compatibility, and controlled persistence integration tests.
+- M3.5 security milestone: Clerk authentication is integrated; protected APIs derive scope only from verified sessions; authenticated upload-token binding and security regression coverage are complete. Live provider/FalkorDB verification remains environment-dependent.
 - M4: bounded graph retrieval and multi-hop evidence.
 - M5: safe correction and forgetting.
 - M6: explicit conversational/pronoun context.

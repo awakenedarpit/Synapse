@@ -6,6 +6,7 @@ Graph Memory Agent is a Next.js application for the Graph Hacks hackathon. It co
 
 - Node.js 22.13+
 - npm
+- A Clerk application (publishable key and secret key)
 - Gemini API credentials
 - FalkorDB credentials and a reachable graph instance for personal-memory features
 
@@ -14,7 +15,8 @@ Graph Memory Agent is a Next.js application for the Graph Hacks hackathon. It co
 ```bash
 npm ci
 cp .env.example .env.local
-# Fill .env.local locally; never commit it.
+# Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY from Clerk,
+# then fill the AI/FalkorDB values locally; never commit .env.local.
 npm run dev
 ```
 
@@ -40,4 +42,6 @@ Gemini is required for chat, but FalkorDB is optional for general-knowledge ques
 
 The current implementation includes a responsive premium chat workspace with dark/light themes, graph-backed memory persistence and retrieval, selective persistence for memory-relevant turns, entity identity resolution, provenance-aware typed relationships, bounded Gemini graph tools, recent conversational context, exact-memory correction with revision history, reversible forgetting, and validated document/image uploads with extraction previews. The graph explorer includes refresh, loading, empty, error, and node-detail states.
 
-**Important:** user scope is currently based on a normalized request-level `userId`, not an authenticated session. The chat/upload API routes do not yet enforce authenticated identities or rate limits; control access before public multi-user deployment. Configure an authentication provider before using this as a multi-user production service. The live Gemini and FalkorDB routes also require the environment variables in `.env.example`.
+**Authentication and privacy:** Clerk is the sole authentication provider. Sign-up, sign-in, sign-out, and session persistence are handled by Clerk. Every chat, graph, upload, memory-mutation, and diagnostic request verifies the Clerk session server-side and derives the graph scope from the verified Clerk user ID; request-body/query-string `userId` values are ignored. Attachment preview tokens are short-lived, signed, and bound to that user. The Clerk dashboard still needs the local development callback/origin configuration, and live Gemini/FalkorDB routes require the environment variables in `.env.example`.
+
+The repository does not claim live authentication, AI, or FalkorDB verification without those external credentials. Rate limiting for expensive AI operations remains deployment-specific and should be added at the edge/provider layer before public high-volume use.
