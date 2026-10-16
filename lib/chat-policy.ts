@@ -5,6 +5,10 @@ export type ChatMemoryPolicy = {
 
 const PERSONAL_MEMORY_PATTERNS = [
   /\bremember\b/i,
+  // Explicit self-identification should be saved even when the user does not say "remember".
+  /\bmy name is\s+\S+/i,
+  /\bcall me\s+\S+/i,
+  /\bi go by\s+\S+/i,
   /\bwhat do you remember\b/i,
   /\bwhat do you know about me\b/i,
   /\bwhat(?:'s| is) my name\b/i,
