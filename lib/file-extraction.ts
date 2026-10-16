@@ -48,7 +48,7 @@ export type VisionExtractor = (bytes: Buffer, mimeType: string, prompt: string) 
 const ATTACHMENT_TOKEN_VERSION = 1;
 const ATTACHMENT_TOKEN_TTL_MS = 10 * 60 * 1000;
 const EPHEMERAL_ATTACHMENT_SECRET = randomBytes(32).toString("hex");
-type AttachmentTokenPayload = { version: number; expiresAt: number; files: ExtractedUpload[] };
+type AttachmentTokenPayload = { version: number; expiresAt: number; userId: string; files: ExtractedUpload[] };
 
 const MIME_TYPES: Record<FileKind, string[]> = {
   pdf: ["application/pdf", "application/octet-stream"],
@@ -528,22 +528,27 @@ function validateTokenFile(value: unknown): ExtractedUpload {
   };
 }
 
-export function createAttachmentToken(files: ExtractedUpload[], secret: string | undefined, now = Date.now()): string {
+export function createAttachmentToken(files: ExtractedUpload[], secret: string | undefined, userIdOrNow: string | number = "", now = Date.now()): string {
+  const userId = typeof userIdOrNow === "string" ? userIdOrNow : "";
+  const issuedAt = typeof userIdOrNow === "number" ? userIdOrNow : now;
   const payload: AttachmentTokenPayload = {
     version: ATTACHMENT_TOKEN_VERSION,
-    expiresAt: now + ATTACHMENT_TOKEN_TTL_MS,
+    expiresAt: issuedAt + ATTACHMENT_TOKEN_TTL_MS,
+    userId,
     files: files.map(validateTokenFile),
   };
   const encoded = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
   return `${encoded}.${tokenSignature(encoded, secret)}`;
 }
 
-export function verifyAttachmentToken(token: string, secret: string | undefined, now = Date.now()): ExtractedUpload[] {
+export function verifyAttachmentToken(token: string, secret: string | undefined, userIdOrNow: string | number = "", now = Date.now()): ExtractedUpload[] {
+  const userId = typeof userIdOrNow === "string" ? userIdOrNow : "";
+  const checkedAt = typeof userIdOrNow === "number" ? userIdOrNow : now;
   const [encoded, signature, ...extra] = token.split(".");
   if (!encoded || !signature || extra.length || !signaturesMatch(signature, tokenSignature(encoded, secret))) throw new FileExtractionError("The attachment token is invalid or expired.", 400);
   try {
     const payload = JSON.parse(Buffer.from(encoded, "base64url").toString("utf8")) as Partial<AttachmentTokenPayload>;
-    if (payload.version !== ATTACHMENT_TOKEN_VERSION || typeof payload.expiresAt !== "number" || payload.expiresAt < now || !Array.isArray(payload.files) || payload.files.length > MAX_UPLOAD_FILES) throw new Error("invalid payload");
+    if (payload.version !== ATTACHMENT_TOKEN_VERSION || typeof payload.expiresAt !== "number" || payload.expiresAt < checkedAt || payload.userId !== userId || !Array.isArray(payload.files) || payload.files.length > MAX_UPLOAD_FILES) throw new Error("invalid payload");
     const files = payload.files.map(validateTokenFile);
     if (!files.length || files.reduce((total, file) => total + file.size, 0) > MAX_UPLOAD_TOTAL_BYTES) throw new Error("invalid files");
     return files;
