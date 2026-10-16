@@ -7,10 +7,43 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Synapse — Graph Memory for AI Agents",
-  description: "Synapse is a persistent graph-memory agent that connects knowledge and recalls useful context, powered by FalkorDB.",
+  applicationName: "Synapse",
+  title: {
+    default: "Synapse — Persistent Graph Memory for AI Agents",
+    template: "%s | Synapse",
+  },
+  description:
+    "Give AI conversations lasting context. Synapse stores useful memories in FalkorDB, connects people and projects, and retrieves relevant knowledge through a visual graph.",
+  keywords: [
+    "Synapse",
+    "AI memory",
+    "graph memory",
+    "AI agents",
+    "FalkorDB",
+    "knowledge graph",
+    "persistent context",
+  ],
+  openGraph: {
+    title: "Synapse — Persistent Graph Memory for AI Agents",
+    description:
+      "A personal knowledge workspace that connects memories, people, and projects with FalkorDB-powered graph retrieval.",
+    siteName: "Synapse",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Synapse — Persistent Graph Memory for AI Agents",
+    description:
+      "Give AI conversations lasting context with graph-backed memory and visual knowledge exploration.",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  return <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}><body className="min-h-full"><ClerkProvider>{children}</ClerkProvider></body></html>;
+  return (
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+      <body className="min-h-full">
+        <ClerkProvider>{children}</ClerkProvider>
+      </body>
+    </html>
+  );
 }
