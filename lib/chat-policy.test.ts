@@ -12,6 +12,12 @@ test("personal-memory questions request scoped graph evidence and persistence", 
   assert.match(graphUnavailableGuidance(true), /do not claim to remember/i);
 });
 
+test("explicitly stating a name triggers graph memory persistence", () => {
+  for (const message of ["My name is Arpit", "Please call me Arpit", "I go by Arpit"]) {
+    assert.deepEqual(getChatMemoryPolicy(message), { needsGraphContext: true, persistMemory: true });
+  }
+});
+
 test("attachments are persisted as document memories, while ordinary conversation is not", () => {
   assert.equal(getChatMemoryPolicy("Summarize this file", true).persistMemory, true);
   assert.equal(getChatMemoryPolicy("Tell me a joke").persistMemory, false);
