@@ -191,7 +191,7 @@ export async function POST(request: Request) {
       const extractionText = await generateTextWithFallback([
           "Extract knowledge from the user message as JSON only.",
           'Schema: {"entities":[{"name":"string","type":"Person|Project|Team|Skill|Organization|Preference|Place|Other","aliases":["string"]}],"relationships":[{"from":"entity name","relation":"UPPER_SNAKE_CASE","to":"entity name"}]}.',
-          "Create separate Person entities for every named person, including introduced teammates. Include only explicit or strongly implied facts. Never invent details. Add aliases only when the message explicitly identifies a nickname or short form for the same entity.",
+          "Create separate Person entities for every named person, including introduced teammates. If the user explicitly identifies themselves (for example, 'my name is Arpit', 'call me Arpit', or 'I go by Arpit'), include that stated name as a Person entity so it can be found again. Include only explicit or strongly implied facts. Never invent details. Add aliases only when the message explicitly identifies a nickname or short form for the same entity.",
           "Identity rules: reuse a known entity only for an exact name, declared alias, or a unique short Person name. If multiple known people match a short name, do not guess and do not attach relationships or personal facts to that ambiguous name.",
           "Conversational context:", conversationContext,
           "Known entities already in the graph:", knownEntityContext, "User message:", userMessage, attachmentContext,
