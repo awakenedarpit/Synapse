@@ -1,47 +1,189 @@
-# Graph Memory Agent
+# Synapse — Persistent Graph Memory for AI Agents
 
-Graph Memory Agent is a Next.js application for the Graph Hacks hackathon. It combines Gemini with FalkorDB to save raw memories, extract entities and typed relationships, answer from recent memory, and visualize the graph.
+Synapse is a personal knowledge workspace for AI conversations. Instead of treating every chat as a blank slate, it turns useful details into linked memories, retrieves relevant context when you ask a question, and lets you explore the connections in a visual graph.
 
-## Requirements
+Built with **Next.js, TypeScript, Clerk, FalkorDB, and configurable AI-provider fallback** for the Graph Hacks hackathon.
 
-- Node.js 22.13+
+## Why Synapse?
+
+AI conversations are useful, but important details can get scattered across chats and documents. Synapse is designed to preserve the context behind your work and make it easier to find again.
+
+- **Remember useful context** — save relevant conversation details as graph-backed memories.
+- **Connect the dots** — extract people, projects, teams, skills, and other entities with typed relationships.
+- **Ask context-aware questions** — retrieve user-scoped graph evidence and use it to inform answers.
+- **Explore your knowledge visually** — inspect memory entities and their connections in the graph explorer.
+- **Bring documents into the conversation** — upload supported files, review extraction previews, and send their extracted text to the agent.
+- **Choose an AI provider strategy** — configure Gemini, Groq, and OpenRouter in a preferred order; providers without keys are skipped and eligible failures can fall back to the next provider.
+- **Use a familiar workspace** — responsive chat UI, light/dark themes, conversation history in the browser, and Clerk-powered account controls.
+
+## Product overview
+
+| Area | What it does |
+| --- | --- |
+| Chat workspace | Chat with the agent, start conversations, use starter prompts, and attach supported documents or images. |
+| Graph explorer | Visualize stored nodes and relationships, refresh graph data, and select nodes to inspect their details. |
+| Memory layer | Persist useful facts, resolve entities, track relationship provenance, and retrieve bounded graph evidence. |
+| File extraction | Validate files, extract text and structure, and show a preview before the content is sent. |
+| Authentication | Use Clerk sessions; protected server routes derive the data scope from the verified identity. |
+
+## Tech stack
+
+- **Web application:** Next.js App Router, React, TypeScript
+- **Styling:** Tailwind CSS and custom responsive styles
+- **Authentication:** Clerk
+- **Graph database:** FalkorDB
+- **AI:** Gemini, Groq, and OpenRouter provider configuration
+- **Graph visualization:** `react-force-graph-2d`
+- **Document processing:** PDF.js, JSZip, CSV parsing, XML parsing, and Sharp
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 22.13 or newer
 - npm
-- A Clerk application (publishable key and secret key)
-- Gemini API credentials
-- FalkorDB credentials and a reachable graph instance for personal-memory features
+- A Clerk application
+- At least one configured chat AI provider
+- A reachable FalkorDB instance for graph-backed memory features
 
-## Local setup
+### 1. Clone and install
 
 ```bash
+git clone https://github.com/awakenedarpit/Synapse.git
+cd Synapse
 npm ci
+```
+
+### 2. Create your local environment file
+
+Copy the example file:
+
+**macOS / Linux**
+```bash
 cp .env.example .env.local
-# Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY from Clerk,
-# then fill the AI/FalkorDB values locally; never commit .env.local.
+```
+
+**Windows PowerShell**
+```powershell
+Copy-Item .env.example .env.local
+```
+
+Open `.env.local` and fill in the values described below. Keep this file local: **never commit it or paste secrets into public issues, chat messages, or screenshots.**
+
+### 3. Configure environment variables
+
+| Variable | Required? | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes for authenticated routes | Clerk publishable key used by the client. |
+| `CLERK_SECRET_KEY` | Yes for authenticated routes | Server-side Clerk secret. Keep it private. |
+| `GEMINI_API_KEY` | Optional if another chat provider is configured; needed for image/scanned-PDF extraction | Gemini chat fallback and vision-based extraction. |
+| `GROQ_API_KEY` | Optional | Enables Groq in the configured provider order. |
+| `OPENROUTER_API_KEY` | Optional | Enables OpenRouter in the configured provider order. |
+| `AI_PROVIDER_PRIORITY` | Optional | Provider order, e.g. `gemini,groq,openrouter`. |
+| `GEMINI_CHAT_MODEL` | Optional | Gemini chat model override. |
+| `GROQ_CHAT_MODEL` | Optional | Groq chat model override. |
+| `OPENROUTER_CHAT_MODEL` | Optional | OpenRouter chat model override. |
+| `GEMINI_VISION_MODEL` | Optional | Gemini vision model used for images and scanned PDFs. |
+| `UPLOAD_TOKEN_SECRET` | Recommended in production | Stable random secret used to sign short-lived upload-preview tokens. |
+| `FALKORDB_HOST` | Required for graph memory | FalkorDB hostname. |
+| `FALKORDB_PORT` | Usually `6379` | FalkorDB port. |
+| `FALKORDB_USERNAME` | Depends on deployment | FalkorDB username, if required. |
+| `FALKORDB_PASSWORD` | Depends on deployment | FalkorDB password. Keep it private. |
+| `FALKORDB_GRAPH_NAME` | Optional | Graph name; defaults to `memory_agent`. |
+
+Use model identifiers that are currently enabled for your provider account. Do not prefix server-only credentials with `NEXT_PUBLIC_`.
+
+### 4. Start the development server
+
+```bash
 npm run dev
 ```
 
-Open <http://localhost:3000> for chat and <http://localhost:3000/graph> for the graph explorer.
+Open [http://localhost:3000](http://localhost:3000).
 
-## File uploads
+- **Chat workspace:** `/`
+- **Graph explorer:** `/graph`
 
-The chat composer accepts PDF, DOCX, PPTX, TXT, Markdown, CSV, JPG/JPEG, PNG, and WEBP files. Extraction previews show available headings, tables, page/slide references, and extracted text before sending. PDF text is parsed locally; scanned PDFs and images use the server-side Gemini vision API. Office documents are read as OOXML/ZIP packages without executing macros.
+For Clerk, configure the development origin and sign-in/sign-up settings in your Clerk dashboard. For deployed environments, add the corresponding environment variables in your hosting provider and redeploy.
 
-Uploaded bytes are processed in memory and are not written to local disk. When a message is sent, the extracted file content is stored in FalkorDB as a document-source memory. Uploads are limited to five files, 10 MB per file, 20 MB combined, 100 PDF pages or slides per presentation, 30 MB of expanded Office archive data, and 16 megapixels per image. Extracted text is capped at 20,000 characters per file. Image and scanned-PDF extraction require `GEMINI_API_KEY` configured on the server; never expose it through a `NEXT_PUBLIC_` variable.
+## Supported uploads
 
-## Verification
+The chat workspace accepts:
+
+- PDF
+- DOCX and PPTX
+- TXT, Markdown, and CSV
+- JPG/JPEG, PNG, and WEBP
+
+Before sending, Synapse displays an extraction preview where available, including headings, tables, extracted text, and PDF-page or presentation-slide references. Text-based PDFs are parsed locally; scanned PDFs and images use the server-side Gemini vision model.
+
+Current application limits:
+
+- Up to **5 files per selection**
+- **10 MB per file** and **20 MB combined**
+- Up to **100 PDF pages or presentation slides**
+- Up to **30 MB** of expanded Office archive data
+- Up to **16 megapixels** per image
+- Extracted text capped at **20,000 characters per file**
+
+Uploads are processed in memory rather than written to local disk. When you send a message with an attachment, its extracted content can be saved as a document-source memory in the configured graph.
+
+## How it works
+
+1. You chat with Synapse or send a supported document.
+2. The server validates the request and verifies the Clerk session.
+3. The configured AI provider generates a response and, when appropriate, extracts entities and relationships.
+4. Useful memories and their provenance are stored in FalkorDB under the verified user's scope.
+5. Later questions retrieve bounded graph evidence to help the agent answer with relevant context.
+6. The graph explorer presents stored entities and relationships so you can inspect how information connects.
+
+The graph is intended to make context inspectable—not to make every generated answer automatically true. Check important answers against their source material.
+
+## Development and verification
+
+Run the project's checks before submitting changes:
 
 ```bash
 npm run lint
-npm run build
 npm test
+npm run build
 ```
 
-Gemini is required for chat, but FalkorDB is optional for general-knowledge questions. Personal-memory retrieval and persistence are best-effort: graph outages are reported separately and must not discard an otherwise valid Gemini answer. `GEMINI_CHAT_MODEL` and `GEMINI_VISION_MODEL` can be set to model identifiers enabled for the target Gemini account. See `AGENTS.md`, `MEMORY.md`, `PRD.md`, and `TRD.md` for architecture, safety rules, requirements, and verified status.
+Live AI and FalkorDB behavior depends on valid external credentials and reachable services. Unit/regression tests do not replace testing against your own configured deployment.
 
-## Current status
+## Security and privacy notes
 
-The current implementation includes a responsive premium chat workspace with dark/light themes, graph-backed memory persistence and retrieval, selective persistence for memory-relevant turns, entity identity resolution, provenance-aware typed relationships, bounded Gemini graph tools, recent conversational context, exact-memory correction with revision history, reversible forgetting, and validated document/image uploads with extraction previews. The graph explorer includes refresh, loading, empty, error, and node-detail states.
+- Clerk is the authentication provider. Protected server routes must verify the session and derive graph ownership from the verified identity.
+- AI and database credentials must remain server-side.
+- Upload-preview tokens are signed, short-lived, and tied to the authenticated user.
+- Graph retrieval is bounded and user-scoped; request-body or query-string user IDs must not be used as authorization.
+- Memory correction and forgetting should target exact memory IDs. Forgetting is designed around reversible deletion markers rather than destructive graph deletion.
+- Do not expose the diagnostic `/api/memory-test` route as a public production workflow.
+- Before public, high-volume use, configure deployment-level rate limiting and review provider quotas, data retention, and access policies.
 
-**Authentication and privacy:** Clerk is the sole authentication provider. Sign-up, sign-in, sign-out, and session persistence are handled by Clerk. Every chat, graph, upload, memory-mutation, and diagnostic request verifies the Clerk session server-side and derives the graph scope from the verified Clerk user ID; request-body/query-string `userId` values are ignored. Attachment preview tokens are short-lived, signed, and bound to that user. The Clerk dashboard still needs the local development callback/origin configuration, and live Gemini/FalkorDB routes require the environment variables in `.env.example`.
+## Project structure
 
-The repository does not claim live authentication, AI, or FalkorDB verification without those external credentials. Rate limiting for expensive AI operations remains deployment-specific and should be added at the edge/provider layer before public high-volume use.
+```text
+app/
+  api/
+    chat/          # AI chat and graph-backed memory workflow
+    graph/         # Graph data for the explorer
+    memory/        # Memory correction and forgetting
+    memory-test/   # Diagnostic graph read/write check
+    upload/        # Validated file extraction and preview tokens
+  graph/           # Interactive graph explorer
+  page.tsx         # Chat workspace
+  layout.tsx       # App shell and page metadata
+lib/
+  auth.ts          # Shared server-side Clerk identity verification
+  file-extraction.ts
+.env.example       # Safe environment-variable template
+```
+
+## Contributing
+
+Issues and focused pull requests are welcome. Please include relevant regression tests for changes to memory identity, graph persistence, retrieval, user scoping, uploads, or memory correction/forgetting. Never include real credentials or personal memory data in examples or test fixtures.
+
+## License
+
+No license file is currently included. Unless a license is added, reuse and redistribution are not granted by default.
