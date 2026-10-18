@@ -57,8 +57,12 @@ export function getChatMemoryPolicy(message: string, hasAttachments = false): Ch
   };
 }
 
-export function graphUnavailableGuidance(needsGraphContext: boolean): string {
-  return needsGraphContext
-    ? "Personal graph memory is unavailable for this request. Do not claim to remember personal facts; clearly say that the memory service could not be reached."
-    : "No personal graph memory is needed for this request. Answer the general question directly and do not invent personal memories.";
+export function graphUnavailableGuidance(needsGraphContext: boolean, retrievalAvailable = false): string {
+  if (!needsGraphContext) {
+    return "No personal graph memory is needed for this request. Answer the general question directly and do not invent personal memories.";
+  }
+  if (retrievalAvailable) {
+    return "Personal graph memory retrieval succeeded. Use the supplied graph evidence and recent memories when relevant. If no matching saved facts are present, say that no relevant saved memory was found; do not claim the service is unavailable.";
+  }
+  return "Personal graph memory retrieval failed for this request. Do not claim to remember personal facts; clearly say that the memory service could not be reached.";
 }

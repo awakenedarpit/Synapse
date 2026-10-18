@@ -26,6 +26,14 @@ test("explicitly stating a name triggers graph memory persistence", () => {
   }
 });
 
+
+test("personal-memory guidance reflects actual retrieval status", () => {
+  assert.match(graphUnavailableGuidance(true, true), /retrieval succeeded/i);
+  assert.match(graphUnavailableGuidance(true, true), /do not claim the service is unavailable/i);
+  assert.match(graphUnavailableGuidance(true, false), /retrieval failed/i);
+  assert.match(graphUnavailableGuidance(false, true), /no personal graph memory is needed/i);
+});
+
 test("attachments are persisted as document memories, while ordinary conversation is not", () => {
   assert.equal(getChatMemoryPolicy("Summarize this file", true).persistMemory, true);
   assert.equal(getChatMemoryPolicy("Tell me a joke").persistMemory, false);
