@@ -231,7 +231,7 @@ export default function Home() {
       setAttachmentToken("");
       setUploadStatus("");
     } catch (error) {
-      updateActiveChat((chat) => ({ ...chat, updatedAt: Date.now(), messages: [...chat.messages, { role: "assistant", content: error instanceof Error ? `I couldn’t reach the memory service: ${error.message}` : "I couldn’t reach the memory service. Please try again." }] }));
+      updateActiveChat((chat) => ({ ...chat, updatedAt: Date.now(), messages: [...chat.messages, { role: "assistant", content: error instanceof Error ? `I couldn’t complete that request: ${error.message}` : "I couldn’t complete that request. Please try again." }] }));
     } finally {
       setLoading(false);
     }
