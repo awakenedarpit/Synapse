@@ -12,7 +12,6 @@ import type { GraphQueryRunner } from "@/lib/persistence";
 import { attachmentPromptContext, extractUploadedFiles, FileExtractionError, isUploadFile, readBoundedUploadForm, tooLargeRequest, verifyAttachmentToken } from "@/lib/file-extraction";
 import { getChatMemoryPolicy, graphUnavailableGuidance } from "@/lib/chat-policy";
 import { AIProviderError, generateTextWithFallback, getPrimaryAIProvider } from "@/lib/ai-router";
-import { getAuthenticatedIdentity } from "@/lib/auth";
 
 const allowedTypes = new Set<EntityType>(["Person", "Project", "Team", "Skill", "Organization", "Preference", "Place", "Other"]);
 const allowedRelations = new Set(["BUILDS", "MEMBER_OF", "TEAMMATE_OF", "KNOWS", "WORKS_ON", "LIKES", "USES", "RELATED_TO", "HANDLES", "LEADS", "CREATED", "PART_OF", "STUDIES", "LOCATED_IN", "HAS_SKILL", "COLLABORATES_WITH"]);
@@ -74,9 +73,7 @@ async function generateGroundedAnswer(
 }
 
 export async function POST(request: Request) {
-  const authResult = await getAuthenticatedIdentity();
-  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
-  const authenticatedUserId = authResult.identity.userId;
+  const authenticatedUserId = "synapse-demo";
   const apiKey = process.env.GEMINI_API_KEY || "";
   const config = getFalkorConfig(process.env);
   if (!apiKey && !process.env.GROQ_API_KEY && !process.env.OPENROUTER_API_KEY) return NextResponse.json({ error: "Configure at least one supported AI provider API key in the server environment." }, { status: 503 });
