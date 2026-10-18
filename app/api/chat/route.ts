@@ -9,7 +9,7 @@ import { buildConversationContext, sanitizeConversation } from "@/lib/conversati
 import { executeGraphTool, getCurrentDateTime, graphToolDeclarations, MAX_TOOL_EXECUTIONS } from "@/lib/agent-tools";
 import { getFalkorConfig, linkMemoryToEntity, readGraphEvidence, readRecentMemories, scopeEntityKey, writeEntity, writeMemory, writeRelationship } from "@/lib/persistence";
 import type { GraphQueryRunner } from "@/lib/persistence";
-import { attachmentPromptContext, extractUploadedFiles, FileExtractionError, isUploadFile, readBoundedUploadForm, tooLargeRequest, verifyAttachmentToken } from "@/lib/file-extraction";
+import { attachmentPromptContext, extractUploadedFiles, FileExtractionError, getAttachmentTokenSecret, isUploadFile, readBoundedUploadForm, tooLargeRequest, verifyAttachmentToken } from "@/lib/file-extraction";
 import { getChatMemoryPolicy, graphUnavailableGuidance } from "@/lib/chat-policy";
 import { AIProviderError, generateTextWithFallback, getPrimaryAIProvider } from "@/lib/ai-router";
 import { getAuthenticatedIdentity } from "@/lib/auth";
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
     }
     if (attachmentToken && uploadFiles.length) return NextResponse.json({ error: "Send either the signed attachment preview or the original files, not both." }, { status: 400 });
     const extractedFiles = attachmentToken
-      ? verifyAttachmentToken(attachmentToken, process.env.UPLOAD_TOKEN_SECRET || apiKey, authenticatedUserId)
+      ? verifyAttachmentToken(attachmentToken, getAttachmentTokenSecret(), authenticatedUserId)
       : uploadFiles.length ? await extractUploadedFiles(uploadFiles, { apiKey }) : [];
     const attachmentContext = attachmentPromptContext(extractedFiles);
     const modelInput = attachmentContext ? `${userMessage}\n\n${attachmentContext}` : userMessage;
@@ -280,7 +280,7 @@ export async function POST(request: Request) {
     } else {
       result = { text: await generateTextWithFallback(prompt), toolExecutions: 0 };
     }
-    return NextResponse.json({ reply: result.text || "I couldn't generate a response. Please try again.", memoriesUsed: previousMemories.length, graphEvidenceUsed: graphEvidence.length, toolExecutions: result.toolExecutions || 0, contextTurnsUsed: conversation.length, contextMemoryId: previousUserTurn?.memoryId || null, memorySaved, memoryId: policy.persistMemory ? memoryId : null, userId, graphStatus, retrievalStatus, memoryPolicy: policy.persistMemory ? "persisted" : "not_persisted", entitiesCreated: persistedEntityCount, relationshipsCreated: persistedRelationshipCount, attachments: extractedFiles.map(({ name, kind, size, headings, references, truncated }) => ({ name, kind, size, headings, references, truncated })) });
+    return NextResponse.json({ reply: result.text || "I couldn't generate a response. Please try again.", memoriesUsed: previousMemories.length, graphEvidenceUsed: graphEvidence.length, toolExecutions: result.toolExecutions || 0, contextTurnsUsed: conversation.length, contextMemoryId: previousUserTurn?.memoryId || null, memorySaved, memoryId: policy.persistMemory && memorySaved ? memoryId : null, userId, graphStatus, retrievalStatus, memoryPolicy: policy.persistMemory ? memorySaved ? "persisted" : "failed" : "not_requested", entitiesCreated: persistedEntityCount, relationshipsCreated: persistedRelationshipCount, attachments: extractedFiles.map(({ name, kind, size, headings, references, truncated }) => ({ name, kind, size, headings, references, truncated })) });
   } catch (error) {
     if (error instanceof FileExtractionError) return NextResponse.json({ error: error.message }, { status: error.status });
     if (error instanceof AIProviderError) {

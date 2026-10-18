@@ -363,3 +363,27 @@ html, body {
     margin-top: 12px;
   }
 }
+
+
+/* Honest connection and persistence indicators. */
+.connection-status-checking i { background: #fbbf24; box-shadow: 0 0 0 4px rgba(251,191,36,.12); }
+.connection-status-unavailable i { background: #f87171; box-shadow: 0 0 0 4px rgba(248,113,113,.12); }
+.status-dot-checking { background: #fbbf24; box-shadow: 0 0 0 4px rgba(251,191,36,.1); }
+.status-dot-unavailable { background: #f87171; box-shadow: 0 0 0 4px rgba(248,113,113,.1); }
+.memory-save-status { margin: 8px 0 0; font-size: 11px; line-height: 1.5; }
+.memory-save-saved { color: var(--success); }
+.memory-save-failed { color: #dc2626; }
+:root[data-theme="dark"] .memory-save-failed { color: #fca5a5; }
+.graph-accessibility { position: absolute; z-index: 15; top: 72px; right: 16px; width: min(300px, calc(100% - 32px)); max-height: 48vh; overflow: auto; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: rgba(14,20,37,.94); color: #cbd5e1; font-size: 12px; backdrop-filter: blur(12px); }
+.graph-accessibility summary { position: sticky; top: 0; cursor: pointer; padding: 11px 13px; background: rgba(14,20,37,.98); color: #f8fafc; font-weight: 600; }
+.graph-accessibility summary:focus-visible, .graph-accessibility button:focus-visible { outline: 2px solid #a78bfa; outline-offset: -2px; }
+.graph-accessibility > ul, .graph-accessibility-links ul { display: grid; gap: 3px; margin: 0; padding: 5px 10px 10px; list-style: none; }
+.graph-accessibility li { min-width: 0; overflow-wrap: anywhere; }
+.graph-accessibility li button { width: 100%; border: 0; border-radius: 7px; background: transparent; color: #cbd5e1; padding: 7px; text-align: left; cursor: pointer; }
+.graph-accessibility li button:hover { background: rgba(255,255,255,.08); color: white; }
+.graph-accessibility-links { border-top: 1px solid rgba(255,255,255,.1); padding: 10px 13px 0; }
+.graph-accessibility-links strong { color: #f8fafc; }
+.graph-accessibility-links li { padding: 5px 0; color: #94a3b8; }
+
+.memory-service-notice { width: fit-content; max-width: 100%; margin: -10px auto 12px; border: 1px solid rgba(248,113,113,.28); border-radius: 8px; background: rgba(248,113,113,.08); color: #dc2626; padding: 7px 10px; font-size: 11px; line-height: 1.5; text-align: center; }
+:root[data-theme="dark"] .memory-service-notice { color: #fca5a5; }

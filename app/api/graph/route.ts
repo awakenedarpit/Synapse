@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
     if (result && Array.isArray(result.data)) {
       for (const row of result.data as GraphRow[]) {
         const { sourceId, sourceType, targetId, targetType, content, relType } = row;
-        if (sourceId !== undefined && sourceId !== null && !nodesMap.has(String(sourceId))) nodesMap.set(String(sourceId), { id: String(sourceId), label: `User (${sourceId})`, type: sourceType || "User" });
+        if (sourceId !== undefined && sourceId !== null && !nodesMap.has(String(sourceId))) nodesMap.set(String(sourceId), { id: String(sourceId), label: "Guest", type: sourceType || "User" });
         if (targetId !== undefined && targetId !== null && !nodesMap.has(String(targetId))) nodesMap.set(String(targetId), { id: String(targetId), label: content ? content.length > 35 ? `${content.substring(0, 32)}...` : content : `Memory (${targetId})`, type: targetType || "Memory" });
         if (sourceId !== undefined && sourceId !== null && targetId !== undefined && targetId !== null) links.push({ source: String(sourceId), target: String(targetId), label: relType || "HAS_MEMORY" });
       }
@@ -44,6 +44,16 @@ export async function GET(req: NextRequest) {
         nodesMap.set(`entity:${raw.key}`, { id: `entity:${raw.key}`, label: raw.name || raw.key, type: raw.type || "Other" });
       }
     }
+    const mentionResult = await graph.query(`MATCH (m:Memory)-[:MENTIONS]->(e:Entity)
+      WHERE m.userId = $userId AND coalesce(m.deleted, false) = false AND e.ownerUserId = $userId
+      RETURN toString(id(m)) AS memoryNodeId, e.key AS entityKey`, { params: { userId } });
+    if (Array.isArray(mentionResult.data)) {
+      for (const mention of mentionResult.data as Array<{ memoryNodeId?: string; entityKey?: string }>) {
+        if (mention.memoryNodeId && mention.entityKey && nodesMap.has(mention.memoryNodeId) && entityIds.has(mention.entityKey)) {
+          links.push({ source: mention.memoryNodeId, target: `entity:${mention.entityKey}`, label: "MENTIONS" });
+        }
+      }
+    }
     const relationResult = await graph.query(`MATCH (a:Entity)-[r]->(b:Entity) WHERE coalesce(r.deleted, false) = false AND (${entityScope.replaceAll("e.", "a.")}) AND (b.ownerUserId = $userId) RETURN a.key AS fromKey, b.key AS toKey, type(r) AS relation`, { params: { userId } });
     if (relationResult && Array.isArray(relationResult.data)) {
       for (const relation of relationResult.data as Array<{ fromKey?: string; toKey?: string; relation?: string }>) {
@@ -55,7 +65,7 @@ export async function GET(req: NextRequest) {
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error("[API/GRAPH] FalkorDB query failed:", errorMessage);
-    return NextResponse.json({ error: "Failed to retrieve graph data" }, { status: 500 });
+    return NextResponse.json({ error: "The graph request failed. Check FalkorDB availability and server logs; database details are not included here." }, { status: 500 });
   } finally {
     if (client) { try { await client.close(); } catch (closeError) { console.error("[API/GRAPH] FalkorDB close failed:", closeError); } }
   }

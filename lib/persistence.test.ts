@@ -36,10 +36,10 @@ test("loads one consistent FalkorDB configuration, graph name, and TLS mode", ()
   assert.equal(getFalkorConfig({ FALKORDB_HOST: "db", FALKORDB_PORT: "not-a-port", FALKORDB_USERNAME: "user", FALKORDB_PASSWORD: "secret" }), null);
 });
 
-test("normalizes user scope and rejects unsafe or empty values", () => {
+test("normalizes user scope and rejects unsafe or empty values without a shared fallback", () => {
   assert.equal(normalizeUserId(" team.alpha-1 "), "team.alpha-1");
-  assert.equal(normalizeUserId("user with spaces"), "default");
-  assert.equal(normalizeUserId(""), "default");
+  assert.equal(normalizeUserId("user with spaces"), null);
+  assert.equal(normalizeUserId(""), null);
   assert.equal(scopeEntityKey("user-1", "person_arpit_raj"), "user-1::person_arpit_raj");
 });
 

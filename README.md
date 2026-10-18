@@ -83,11 +83,11 @@ Open `.env.local` and fill in the values described below. Keep this file local: 
 | `GROQ_CHAT_MODEL` | Optional | Groq chat model override. |
 | `OPENROUTER_CHAT_MODEL` | Optional | OpenRouter chat model override. |
 | `GEMINI_VISION_MODEL` | Optional | Gemini vision model used for images and scanned PDFs. |
-| `UPLOAD_TOKEN_SECRET` | Recommended in production | Stable random secret used to sign short-lived upload-preview tokens. |
+| `UPLOAD_TOKEN_SECRET` | Required in production unless `GEMINI_API_KEY` is configured; recommended otherwise | Stable server-only secret used to sign short-lived upload-preview tokens across serverless instances. |
 | `FALKORDB_HOST` | Required for graph memory | FalkorDB hostname. |
-| `FALKORDB_PORT` | Usually `6379` | FalkorDB port. |
-| `FALKORDB_USERNAME` | Depends on deployment | FalkorDB username, if required. |
-| `FALKORDB_PASSWORD` | Depends on deployment | FalkorDB password. Keep it private. |
+| `FALKORDB_PORT` | Required; commonly `6379` | FalkorDB port number. |
+| `FALKORDB_USERNAME` | Required by this app | FalkorDB username. Configure credentials even if the server itself permits anonymous access. |
+| `FALKORDB_PASSWORD` | Required by this app | FalkorDB password. Keep it private. |
 | `FALKORDB_GRAPH_NAME` | Optional | Graph name; defaults to `memory_agent`. |
 | `FALKORDB_TLS` | Optional | Set `true` for FalkorDB Cloud/TLS endpoints; defaults to `false` for local plain TCP. |
 | `UPSTASH_REDIS_REST_URL` | Recommended in production | Upstash Redis REST endpoint for durable serverless rate limiting. |

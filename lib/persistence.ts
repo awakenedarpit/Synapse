@@ -1,5 +1,4 @@
 export const DEFAULT_GRAPH_NAME = "memory_agent";
-export const DEFAULT_USER_ID = "default";
 
 export type GraphQueryParam = null | string | number | boolean | { [key: string]: GraphQueryParam } | GraphQueryParam[];
 export type GraphQueryOptions = { params?: Record<string, GraphQueryParam> };
@@ -75,10 +74,10 @@ export function getFalkorConfig(
   };
 }
 
-export function normalizeUserId(value: unknown): string {
-  if (typeof value !== "string") return DEFAULT_USER_ID;
+export function normalizeUserId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
   const normalized = value.trim();
-  if (!normalized || normalized.length > 120 || !/^[\p{L}\p{N}._:-]+$/u.test(normalized)) return DEFAULT_USER_ID;
+  if (!normalized || normalized.length > 120 || !/^[\p{L}\p{N}._:-]+$/u.test(normalized)) return null;
   return normalized;
 }
 

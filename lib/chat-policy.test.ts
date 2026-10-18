@@ -7,9 +7,17 @@ test("general knowledge does not require graph context or durable memory", () =>
   assert.match(graphUnavailableGuidance(false), /general question directly/i);
 });
 
-test("personal-memory questions request scoped graph evidence and persistence", () => {
-  assert.deepEqual(getChatMemoryPolicy("What do you remember about my project?"), { needsGraphContext: true, persistMemory: true });
+test("personal-memory questions request scoped graph evidence without saving the question", () => {
+  assert.deepEqual(getChatMemoryPolicy("What do you remember about my project?"), { needsGraphContext: true, persistMemory: false });
+  assert.deepEqual(getChatMemoryPolicy("Do you remember my favorite programming language?"), { needsGraphContext: true, persistMemory: false });
+  assert.deepEqual(getChatMemoryPolicy("What is my favorite programming language?"), { needsGraphContext: true, persistMemory: false });
+  assert.deepEqual(getChatMemoryPolicy("Forget this memory about my old project."), { needsGraphContext: true, persistMemory: false });
   assert.match(graphUnavailableGuidance(true), /do not claim to remember/i);
+});
+
+test("explicit requests and direct personal fact statements are persisted", () => {
+  assert.deepEqual(getChatMemoryPolicy("Remember that my favorite programming language is Python."), { needsGraphContext: true, persistMemory: true });
+  assert.deepEqual(getChatMemoryPolicy("My favorite programming language is Python."), { needsGraphContext: true, persistMemory: true });
 });
 
 test("explicitly stating a name triggers graph memory persistence", () => {

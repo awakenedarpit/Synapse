@@ -10,9 +10,9 @@ export async function POST(request: Request) {
   if (!limiter.allowed) return NextResponse.json({ error: "Too many guest-session requests. Try again later." }, { status: 429, headers: { "Retry-After": String(limiter.retryAfterSeconds) } });
   const existing = (await cookies()).get(GUEST_SESSION_COOKIE)?.value;
   const existingGuestId = verifyGuestSessionToken(existing);
-  if (existingGuestId) return NextResponse.json({ ok: true, userId: existingGuestId, reused: true }, { headers: { "Cache-Control": "no-store" } });
+  if (existingGuestId) return NextResponse.json({ ok: true, reused: true }, { headers: { "Cache-Control": "no-store" } });
   const session = createGuestSessionToken();
-  const response = NextResponse.json({ ok: true, userId: session.guestId, reused: false }, { headers: { "Cache-Control": "no-store" } });
+  const response = NextResponse.json({ ok: true, reused: false }, { headers: { "Cache-Control": "no-store" } });
   response.cookies.set(GUEST_SESSION_COOKIE, session.token, guestCookieOptions(session.expiresAt));
   return response;
 }
