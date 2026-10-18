@@ -10,7 +10,7 @@ export async function GET() {
   try {
     const config = getFalkorConfig(process.env);
     if (!config) return NextResponse.json({ error: "FalkorDB environment variables are missing." }, { status: 500 });
-    db = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: false, connectTimeout: 10000 } });
+    db = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: config.tls, connectTimeout: 10000 } });
     const graph = db.selectGraph(config.graphName);
     await graph.query(
       "MERGE (m:MemoryTest {id: $id, userId: $userId}) SET m.message = 'Graph write and read works', m.source = 'diagnostic', m.updatedAt = timestamp()",

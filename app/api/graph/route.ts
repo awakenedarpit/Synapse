@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const config = getFalkorConfig(process.env);
     if (!config) return NextResponse.json({ error: "FalkorDB configuration is missing or invalid." }, { status: 500 });
     const userId = "synapse-demo";
-    client = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: false, connectTimeout: 10000 } });
+    client = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: config.tls, connectTimeout: 10000 } });
     const graph = client.selectGraph(config.graphName);
     const result = await graph.query(`
       MATCH (m:Memory)
