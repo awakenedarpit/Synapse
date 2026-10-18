@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { FalkorDB } from "falkordb";
 import { getFalkorConfig } from "@/lib/persistence";
-import { getAuthenticatedIdentity } from "@/lib/auth";
 
 type GraphRow = { sourceId?: string | number; sourceType?: string; targetId?: string | number; targetType?: string; content?: string; relType?: string };
 type GraphNode = { id: string; label: string; type: string };
@@ -9,13 +8,11 @@ type GraphLink = { source: string; target: string; label: string };
 
 export async function GET(req: NextRequest) {
   void req;
-  const authResult = await getAuthenticatedIdentity();
-  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   let client: Awaited<ReturnType<typeof FalkorDB.connect>> | undefined;
   try {
     const config = getFalkorConfig(process.env);
     if (!config) return NextResponse.json({ error: "FalkorDB configuration is missing or invalid." }, { status: 500 });
-    const userId = authResult.identity.userId;
+    const userId = "synapse-demo";
     client = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: false, connectTimeout: 10000 } });
     const graph = client.selectGraph(config.graphName);
     const result = await graph.query(`
