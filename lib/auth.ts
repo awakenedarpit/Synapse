@@ -1,16 +1,13 @@
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
+import { hasClerkConfiguration } from "@/lib/auth-config";
 
 export type AuthenticatedIdentity = { userId: string };
 export type AuthFailure = { ok: false; status: 401 | 503; error: string };
 export type AuthResult = { ok: true; identity: AuthenticatedIdentity } | AuthFailure;
 
-function authConfigured(): boolean {
-  return Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-}
-
 export async function getAuthenticatedIdentity(): Promise<AuthResult> {
-  if (!authConfigured()) {
+  if (!hasClerkConfiguration(process.env)) {
     return { ok: false, status: 503, error: "Authentication is not configured. Set the Clerk server and publishable keys." };
   }
   try {

@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 import { createAttachmentToken, extractUploadedFiles, FileExtractionError, isUploadFile, readBoundedUploadForm, tooLargeRequest } from "@/lib/file-extraction";
+import { getAuthenticatedIdentity } from "@/lib/auth";
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
+  const authResult = await getAuthenticatedIdentity();
+  if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data")) {
     return NextResponse.json({ error: "Upload files using a multipart/form-data request." }, { status: 415 });
   }
@@ -19,7 +22,7 @@ export async function POST(request: Request) {
     }
     const files = entries.filter(isUploadFile);
     const extracted = await extractUploadedFiles(files, { apiKey: process.env.GEMINI_API_KEY });
-    const token = createAttachmentToken(extracted, process.env.UPLOAD_TOKEN_SECRET || process.env.GEMINI_API_KEY, "synapse-demo");
+    const token = createAttachmentToken(extracted, process.env.UPLOAD_TOKEN_SECRET || process.env.GEMINI_API_KEY, authResult.identity.userId);
     return NextResponse.json({ files: extracted, token }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     if (error instanceof FileExtractionError) {
