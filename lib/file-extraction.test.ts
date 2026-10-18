@@ -7,11 +7,34 @@ import {
   createAttachmentToken,
   extractUploadedFiles,
   FileExtractionError,
+  getAttachmentTokenSecret,
   MAX_UPLOAD_FILE_BYTES,
   readBoundedUploadForm,
   tooLargeRequest,
   verifyAttachmentToken,
 } from "./file-extraction.ts";
+
+test("uses a stable upload-token secret in production and rejects an implicit ephemeral secret", () => {
+  assert.equal(getAttachmentTokenSecret({ NODE_ENV: "production" }), undefined);
+  assert.equal(getAttachmentTokenSecret({ NODE_ENV: "production", UPLOAD_TOKEN_SECRET: "dedicated-secret" }), "dedicated-secret");
+  assert.equal(getAttachmentTokenSecret({ NODE_ENV: "production", GEMINI_API_KEY: "gemini-secret" }), "gemini-secret");
+  assert.ok(getAttachmentTokenSecret({ NODE_ENV: "development" }));
+});
+
+test("refuses to sign upload previews with an ephemeral key in production", () => {
+  const env = process.env as Record<string, string | undefined>;
+  const previous = env.NODE_ENV;
+  env.NODE_ENV = "production";
+  try {
+    assert.throws(
+      () => createAttachmentToken([{ name: "note.txt", kind: "txt", mimeType: "text/plain", size: 4, text: "note", headings: [], tables: [], references: [], truncated: false }], undefined, "guest-test"),
+      (error: unknown) => error instanceof FileExtractionError && error.status === 503,
+    );
+  } finally {
+    if (previous === undefined) delete env.NODE_ENV;
+    else env.NODE_ENV = previous;
+  }
+});
 
 function uploadFile(name: string, mimeType: string, bytes: Uint8Array | Buffer): File {
   return new File([new Uint8Array(bytes)], name, { type: mimeType });

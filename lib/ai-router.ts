@@ -4,9 +4,12 @@ export type AIProvider = "gemini" | "groq" | "openrouter";
 type GenerateOptions = { json?: boolean; excludeProviders?: AIProvider[] };
 
 export class AIProviderError extends Error {
-  constructor(message: string, public readonly status: number) {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
     super(message);
     this.name = "AIProviderError";
+    this.status = status;
   }
 }
 

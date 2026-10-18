@@ -50,6 +50,12 @@ const ATTACHMENT_TOKEN_TTL_MS = 10 * 60 * 1000;
 const EPHEMERAL_ATTACHMENT_SECRET = randomBytes(32).toString("hex");
 type AttachmentTokenPayload = { version: number; expiresAt: number; userId: string; files: ExtractedUpload[] };
 
+export function getAttachmentTokenSecret(env: Record<string, string | undefined> = process.env): string | undefined {
+  if (env.UPLOAD_TOKEN_SECRET) return env.UPLOAD_TOKEN_SECRET;
+  if (env.GEMINI_API_KEY) return env.GEMINI_API_KEY;
+  return env.NODE_ENV === "production" ? undefined : EPHEMERAL_ATTACHMENT_SECRET;
+}
+
 const MIME_TYPES: Record<FileKind, string[]> = {
   pdf: ["application/pdf", "application/octet-stream"],
   docx: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/octet-stream"],
@@ -496,6 +502,9 @@ export async function extractUploadedFiles(
 }
 
 function tokenSignature(payload: string, secret: string | undefined): string {
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new FileExtractionError("Upload preview signing is not configured. Set UPLOAD_TOKEN_SECRET on the server.", 503);
+  }
   return createHmac("sha256", secret || EPHEMERAL_ATTACHMENT_SECRET).update(payload).digest("base64url");
 }
 
