@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { createAttachmentToken, extractUploadedFiles, FileExtractionError, isUploadFile, readBoundedUploadForm, tooLargeRequest } from "@/lib/file-extraction";
 import { getAuthenticatedIdentity } from "@/lib/auth";
+import { enforceRateLimit, isSameOrigin } from "@/lib/guest-session";
 
 export const maxDuration = 60;
 
 export async function POST(request: Request) {
-  const authResult = await getAuthenticatedIdentity();
+  if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  const authResult = await getAuthenticatedIdentity(request);
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const limiter = await enforceRateLimit(`synapse:upload:${authResult.identity.userId}`, 20, 60 * 60);
+  if (!limiter.allowed) return NextResponse.json({ error: "You have reached the guest upload limit. Try again later." }, { status: 429, headers: { "Retry-After": String(limiter.retryAfterSeconds) } });
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("multipart/form-data")) {
     return NextResponse.json({ error: "Upload files using a multipart/form-data request." }, { status: 415 });
   }

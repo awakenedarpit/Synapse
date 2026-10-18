@@ -13,6 +13,7 @@ import { attachmentPromptContext, extractUploadedFiles, FileExtractionError, isU
 import { getChatMemoryPolicy, graphUnavailableGuidance } from "@/lib/chat-policy";
 import { AIProviderError, generateTextWithFallback, getPrimaryAIProvider } from "@/lib/ai-router";
 import { getAuthenticatedIdentity } from "@/lib/auth";
+import { enforceRateLimit, isSameOrigin } from "@/lib/guest-session";
 
 const allowedTypes = new Set<EntityType>(["Person", "Project", "Team", "Skill", "Organization", "Preference", "Place", "Other"]);
 const allowedRelations = new Set(["BUILDS", "MEMBER_OF", "TEAMMATE_OF", "KNOWS", "WORKS_ON", "LIKES", "USES", "RELATED_TO", "HANDLES", "LEADS", "CREATED", "PART_OF", "STUDIES", "LOCATED_IN", "HAS_SKILL", "COLLABORATES_WITH"]);
@@ -74,9 +75,12 @@ async function generateGroundedAnswer(
 }
 
 export async function POST(request: Request) {
-  const authResult = await getAuthenticatedIdentity();
+  if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  const authResult = await getAuthenticatedIdentity(request);
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   const authenticatedUserId = authResult.identity.userId;
+  const limiter = await enforceRateLimit(`synapse:chat:${authenticatedUserId}`, 60, 60 * 60);
+  if (!limiter.allowed) return NextResponse.json({ error: "You have reached the guest chat limit. Try again later." }, { status: 429, headers: { "Retry-After": String(limiter.retryAfterSeconds) } });
   const apiKey = process.env.GEMINI_API_KEY || "";
   const config = getFalkorConfig(process.env);
   if (!apiKey && !process.env.GROQ_API_KEY && !process.env.OPENROUTER_API_KEY) return NextResponse.json({ error: "Configure at least one supported AI provider API key in the server environment." }, { status: 503 });
@@ -175,7 +179,7 @@ export async function POST(request: Request) {
     try {
       if (graph && memorySaved && policy.persistMemory) {
       const knownResult = await graph.query(
-        "MATCH (e:Entity) WHERE e.ownerUserId = $userId OR (e.ownerUserId IS NULL AND $userId = 'default') RETURN e.key AS key, e.name AS name, e.type AS type, e.aliases AS aliases LIMIT 500",
+        "MATCH (e:Entity) WHERE e.ownerUserId = $userId RETURN e.key AS key, e.name AS name, e.type AS type, e.aliases AS aliases LIMIT 500",
         { params: { userId } },
       );
       const knownEntities: KnownEntity[] = (Array.isArray(knownResult.data) ? knownResult.data : [])

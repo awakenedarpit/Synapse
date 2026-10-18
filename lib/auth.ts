@@ -1,23 +1,16 @@
 import "server-only";
-import { auth } from "@clerk/nextjs/server";
-import { hasClerkConfiguration } from "@/lib/auth-config";
+import { cookies } from "next/headers";
+import { GUEST_SESSION_COOKIE, hasGuestSessionConfiguration, verifyGuestSessionToken } from "@/lib/guest-session";
 
 export type AuthenticatedIdentity = { userId: string };
 export type AuthFailure = { ok: false; status: 401 | 503; error: string };
 export type AuthResult = { ok: true; identity: AuthenticatedIdentity } | AuthFailure;
 
-export async function getAuthenticatedIdentity(): Promise<AuthResult> {
-  if (!hasClerkConfiguration(process.env)) {
-    return { ok: false, status: 503, error: "Authentication is not configured. Set the Clerk server and publishable keys." };
-  }
-  try {
-    const { userId } = await auth();
-    if (!userId || !/^user_[A-Za-z0-9_-]{1,120}$/.test(userId)) {
-      return { ok: false, status: 401, error: "Sign in to access this Synapse workspace." };
-    }
-    return { ok: true, identity: { userId } };
-  } catch (error) {
-    console.error("[AUTH] Session verification failed:", error instanceof Error ? error.message : "unknown error");
-    return { ok: false, status: 503, error: "Authentication could not be verified. Try again shortly." };
-  }
+export async function getAuthenticatedIdentity(request: Request): Promise<AuthResult> {
+  void request;
+  if (!hasGuestSessionConfiguration(process.env)) return { ok: false, status: 503, error: "Guest sessions are not configured. Set GUEST_SESSION_SECRET on the server." };
+  const token = (await cookies()).get(GUEST_SESSION_COOKIE)?.value;
+  const guestId = verifyGuestSessionToken(token);
+  if (!guestId) return { ok: false, status: 401, error: "Your guest session is missing or expired. Refresh the page to start a new session." };
+  return { ok: true, identity: { userId: guestId } };
 }

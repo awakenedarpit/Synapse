@@ -27,7 +27,7 @@ test("searches memories with the validated user scope and returns no invented re
   assert.match(graph.calls[0].cypher, /m\.userId|Memory \{userId: \$userId\}/);
   assert.match(graph.calls[0].cypher, /e\.ownerUserId = \$userId/);
   assert.match(graph.calls[0].cypher, /mentioned\.ownerUserId = \$userId/);
-  assert.match(graph.calls[0].cypher, /ownerUserId IS NULL AND \$userId = 'default'/);
+  assert.doesNotMatch(graph.calls[0].cypher, /ownerUserId IS NULL|\$userId = 'default'/);
   assert.doesNotMatch(graph.calls[0].cypher, /DELETE|DETACH DELETE/);
 });
 

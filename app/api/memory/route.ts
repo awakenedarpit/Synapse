@@ -2,14 +2,18 @@ import { NextResponse } from "next/server";
 import { FalkorDB } from "falkordb";
 import { correctMemory, forgetMemory, getFalkorConfig } from "@/lib/persistence";
 import { getAuthenticatedIdentity } from "@/lib/auth";
+import { enforceRateLimit, isSameOrigin } from "@/lib/guest-session";
 
 function validMemoryId(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0 && value.trim().length <= 200;
 }
 
 export async function POST(request: Request) {
-  const authResult = await getAuthenticatedIdentity();
+  if (!isSameOrigin(request)) return NextResponse.json({ error: "Invalid request origin." }, { status: 403 });
+  const authResult = await getAuthenticatedIdentity(request);
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+  const limiter = await enforceRateLimit(`synapse:memory:${authResult.identity.userId}`, 60, 60 * 60);
+  if (!limiter.allowed) return NextResponse.json({ error: "Too many memory changes. Try again later." }, { status: 429, headers: { "Retry-After": String(limiter.retryAfterSeconds) } });
   const config = getFalkorConfig(process.env);
   if (!config) return NextResponse.json({ error: "FalkorDB configuration is missing from .env.local." }, { status: 500 });
 

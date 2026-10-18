@@ -3,8 +3,8 @@ import { FalkorDB } from "falkordb";
 import { getFalkorConfig } from "@/lib/persistence";
 import { getAuthenticatedIdentity } from "@/lib/auth";
 
-export async function GET() {
-  const authResult = await getAuthenticatedIdentity();
+export async function GET(request: Request) {
+  const authResult = await getAuthenticatedIdentity(request);
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   let db: Awaited<ReturnType<typeof FalkorDB.connect>> | undefined;
   try {

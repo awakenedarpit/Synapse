@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ensureGuestSession } from "@/lib/guest-session-client";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type Message = { role: "user" | "assistant"; content: string; memoryId?: string };
@@ -117,11 +118,14 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState("");
   const [uploadError, setUploadError] = useState("");
+  const [guestReady, setGuestReady] = useState(false);
+  const [guestError, setGuestError] = useState("");
 
   const activeChat = sessions.find((session) => session.id === activeId) || sessions[0];
   const visibleSessions = useMemo(() => sessions.filter((session) => session.title.toLowerCase().includes(chatSearch.toLowerCase())), [sessions, chatSearch]);
 
   useEffect(() => {
+    void ensureGuestSession().then(() => setGuestReady(true)).catch((error) => setGuestError(error instanceof Error ? error.message : "Guest session could not be created."));
     const storedChats = window.localStorage.getItem("graph-memory-chats");
     const initial = storedChats ? JSON.parse(storedChats) as ChatSession[] : [createChat()];
     setSessions(initial.length ? initial : [createChat()]);
@@ -164,6 +168,7 @@ export default function Home() {
   }
 
   async function previewFiles(event: ChangeEvent<HTMLInputElement>) {
+    if (!guestReady) { setUploadError(guestError || "Starting a secure guest session…"); return; }
     const files = Array.from(event.currentTarget.files || []);
     event.currentTarget.value = "";
     if (!files.length) return;
@@ -205,7 +210,7 @@ export default function Home() {
     event.preventDefault();
     const text = input.trim();
     const filesReady = attachedFiles.length > 0 && extractionPreviews.length === attachedFiles.length && Boolean(attachmentToken) && !uploadError;
-    if ((!text && !filesReady) || loading || uploading || !activeChat) return;
+    if ((!text && !filesReady) || loading || uploading || !activeChat || !guestReady) return;
     const userText = text || "Please summarize the attached files.";
     const displayedUserText = attachedFiles.length ? `${userText}\n\nAttachments: ${attachedFiles.map((file) => file.name).join(", ")}` : userText;
     const conversation = activeChat.messages.slice(-8).map(({ role, content, memoryId }) => ({ role, content, ...(memoryId ? { memoryId } : {}) }));
@@ -239,6 +244,7 @@ export default function Home() {
 
   return (
     <main className="app-shell">
+      {guestError && <div role="alert" className="mx-auto mt-3 max-w-3xl rounded-lg border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-200">{guestError} Refresh the page to retry.</div>}
       <div className={`mobile-scrim ${sidebarOpen ? "is-visible" : ""}`} onClick={() => setSidebarOpen(false)} aria-hidden="true" />
       <aside className={`workspace-sidebar ${sidebarOpen ? "is-open" : ""}`}>
         <div className="sidebar-topline"><Link href="/" className="brand" aria-label="Synapse home"><span className="brand-symbol" aria-hidden="true"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="synapse-stroke" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stopColor="#8BE9E1"/><stop offset=".52" stopColor="#9A91FF"/><stop offset="1" stopColor="#6E9CFF"/></linearGradient></defs><path d="M10 8.5 16 5l6 3.5v7L16 19l-6-3.5v-7Z" stroke="url(#synapse-stroke)" strokeWidth="1.8" strokeLinejoin="round"/><path d="m10 15.5-4 2.3v6.1l5.3 3.1 5.3-3.1v-4.8M22 15.5l4 2.3v6.1l-5.3 3.1-4.1-2.4" stroke="url(#synapse-stroke)" strokeWidth="1.8" strokeLinejoin="round"/><circle cx="16" cy="12" r="2.2" fill="#F5F7FF"/><circle cx="6" cy="17.8" r="1.7" fill="#8BE9E1"/><circle cx="26" cy="17.8" r="1.7" fill="#9A91FF"/><circle cx="16" cy="24.9" r="1.7" fill="#7FAEFF"/></svg></span><span><strong>Synapse</strong><small>Personal knowledge workspace</small></span></Link><button type="button" className="icon-button mobile-close" onClick={() => setSidebarOpen(false)} aria-label="Close sidebar">×</button></div>

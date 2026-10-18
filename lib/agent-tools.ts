@@ -96,9 +96,9 @@ export async function searchMemories(graph: GraphQueryRunner, userId: string, ar
        AND (toLower(m.content) CONTAINS toLower($query)
          OR EXISTS { MATCH (m)-[:MENTIONS]->(e:Entity)
            WHERE toLower(e.name) CONTAINS toLower($query)
-             AND (e.ownerUserId = $userId OR (e.ownerUserId IS NULL AND $userId = 'default')) })
+             AND (e.ownerUserId = $userId) })
      OPTIONAL MATCH (m)-[:MENTIONS]->(mentioned:Entity)
-     WHERE mentioned.ownerUserId = $userId OR (mentioned.ownerUserId IS NULL AND $userId = 'default')
+     WHERE mentioned.ownerUserId = $userId
      RETURN m.id AS memoryId, m.content AS content, m.createdAt AS createdAt,
        collect(DISTINCT mentioned.name) AS entities
      ORDER BY m.createdAt DESC LIMIT $limit`,
@@ -117,12 +117,12 @@ export async function findEntityRelationships(graph: GraphQueryRunner, userId: s
   const limit = resultLimit(args);
   const result = await graph.query(
     `MATCH (e:Entity)
-     WHERE (e.ownerUserId = $userId OR (e.ownerUserId IS NULL AND $userId = 'default'))
+     WHERE (e.ownerUserId = $userId)
        AND (toLower(e.name) = toLower($name)
          OR any(alias IN coalesce(e.aliases, []) WHERE toLower(alias) = toLower($name)))
      OPTIONAL MATCH (e)-[r]-(other:Entity)
      WHERE coalesce(r.deleted, false) = false
-       AND (other.ownerUserId = $userId OR (other.ownerUserId IS NULL AND $userId = 'default'))
+       AND (other.ownerUserId = $userId)
      RETURN e.key AS key, e.name AS name, e.type AS type,
        other.name AS relatedName, other.type AS relatedType, type(r) AS relation,
        r.sourceMemoryId AS sourceMemoryId

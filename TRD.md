@@ -8,7 +8,7 @@ Browser (Next.js client)
   └── Graph explorer ── GET /api/graph ── FalkorDB
 ```
 
-The application uses the Next.js App Router and Clerk for authentication/session persistence. Gemini performs response generation and structured extraction. FalkorDB stores raw `Memory` nodes, scoped `Entity` lookup nodes, domain labels, and typed relationships. Route handlers call one server-only auth helper; the verified Clerk `userId` is the only graph scope accepted.
+The application uses the Next.js App Router and signed guest sessions for public session persistence. Gemini performs response generation and structured extraction. FalkorDB stores raw `Memory` nodes, scoped `Entity` lookup nodes, domain labels, and typed relationships. Route handlers call one server-only auth helper; the verified guest `userId` is the only graph scope accepted.
 
 ## Current API contracts
 
@@ -16,7 +16,7 @@ The application uses the Next.js App Router and Clerk for authentication/session
 
 Request: `{ "message": string, "conversation?: [{ "role": "user" | "assistant", "content": string, "memoryId?: string }] }`
 
-Success includes `{ reply, memoriesUsed, graphEvidenceUsed, contextTurnsUsed, contextMemoryId, memorySaved, memoryId, userId, entitiesCreated, relationshipsCreated }`, where `userId` is the verified Clerk identity.
+Success includes `{ reply, memoriesUsed, graphEvidenceUsed, contextTurnsUsed, contextMemoryId, memorySaved, memoryId, userId, entitiesCreated, relationshipsCreated }`, where `userId` is the verified guest identity.
 
 The client sends at most eight recent turns and retains the returned `memoryId` on user turns. Pronouns and implicit references use the immediately preceding user turn only when it is the single clear candidate; otherwise the agent asks for clarification.
 
@@ -24,7 +24,7 @@ The answer step exposes only two server-defined read tools: `search_memories` an
 
 ### `GET /api/graph`
 
-Query parameters are not used for authorization. Returns `{ nodes: [{ id, label, type }], links: [{ source, target, label }] }` for the verified Clerk user only.
+Query parameters are not used for authorization. Returns `{ nodes: [{ id, label, type }], links: [{ source, target, label }] }` for the verified guest user only.
 
 ### `GET /api/memory-test`
 
@@ -61,7 +61,7 @@ Identity matching normalizes Unicode text, punctuation, and case. An exact canon
 - Keep credentials server-side and never log them.
 - Parameterize graph values.
 - Allow-list all interpolated labels and relationship types.
-- Clerk is the single provider. Every protected route verifies the server session and derives a canonical user scope; caller-supplied IDs, headers, and query parameters cannot select a graph owner.
+- Guest sessions are the single public identity mechanism. Every protected route verifies the signed cookie and derives a canonical user scope; caller-supplied IDs, headers, and query parameters cannot select a graph owner.
 - Signed attachment preview tokens include the authenticated user ID and expire after ten minutes; a token cannot be replayed by another user.
 - Do not expose another user's memory through graph or retrieval APIs.
 - Do not accept natural-language or partial targets for correction/forgetting; require an exact memory ID and explicit confirmation for forgetting.
@@ -78,5 +78,5 @@ Identity matching normalizes Unicode text, punctuation, and case. An exact canon
 
 - Static: lint, TypeScript, production build.
 - Unit/regression: normalization, exact and alias matching, unique/ambiguous short-name matching, type-scoped keys, duplicate entity/edge prevention, bounded graph evidence grouping, graph tool retrieval, missing/ambiguous results, user-data isolation, confirmed writes, soft correction/forgetting, allow-list validation, and safe missing-config errors. Run with `npm test`.
-- Integration: persistence helpers are tested against a controlled in-memory graph-query mock; live chat persistence and graph retrieval still require configured Clerk, AI, and FalkorDB instances. Missing Clerk configuration returns an explicit service-unavailable response; unauthenticated sessions return 401. Deployment-specific edge rate limiting remains required for public high-volume use.
+- Integration: persistence helpers are tested against a controlled in-memory graph-query mock; live chat persistence and graph retrieval still require configured guest secret, AI, and FalkorDB instances. Missing guest-session configuration returns an explicit service-unavailable response; missing or invalid sessions return 401. Configure Upstash Redis for durable rate limiting on Vercel.
 - UI smoke: responsive chat send/error/loading and graph loading/empty/error/node-detail flows.

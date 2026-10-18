@@ -8,8 +8,7 @@ type GraphNode = { id: string; label: string; type: string };
 type GraphLink = { source: string; target: string; label: string };
 
 export async function GET(req: NextRequest) {
-  void req;
-  const authResult = await getAuthenticatedIdentity();
+  const authResult = await getAuthenticatedIdentity(req);
   if (!authResult.ok) return NextResponse.json({ error: authResult.error }, { status: authResult.status });
   let client: Awaited<ReturnType<typeof FalkorDB.connect>> | undefined;
   try {
@@ -35,7 +34,7 @@ export async function GET(req: NextRequest) {
         if (sourceId !== undefined && sourceId !== null && targetId !== undefined && targetId !== null) links.push({ source: String(sourceId), target: String(targetId), label: relType || "HAS_MEMORY" });
       }
     }
-    const entityScope = "(e.ownerUserId = $userId OR (e.ownerUserId IS NULL AND $userId = 'default'))";
+    const entityScope = "(e.ownerUserId = $userId)";
     const entityResult = await graph.query(`MATCH (e:Entity) WHERE ${entityScope} RETURN e.key AS key, e.name AS name, e.type AS type` , { params: { userId } });
     const entityIds = new Set<string>();
     if (entityResult && Array.isArray(entityResult.data)) {
@@ -45,7 +44,7 @@ export async function GET(req: NextRequest) {
         nodesMap.set(`entity:${raw.key}`, { id: `entity:${raw.key}`, label: raw.name || raw.key, type: raw.type || "Other" });
       }
     }
-    const relationResult = await graph.query(`MATCH (a:Entity)-[r]->(b:Entity) WHERE coalesce(r.deleted, false) = false AND (${entityScope.replaceAll("e.", "a.")}) AND (b.ownerUserId = $userId OR (b.ownerUserId IS NULL AND $userId = 'default')) RETURN a.key AS fromKey, b.key AS toKey, type(r) AS relation`, { params: { userId } });
+    const relationResult = await graph.query(`MATCH (a:Entity)-[r]->(b:Entity) WHERE coalesce(r.deleted, false) = false AND (${entityScope.replaceAll("e.", "a.")}) AND (b.ownerUserId = $userId) RETURN a.key AS fromKey, b.key AS toKey, type(r) AS relation`, { params: { userId } });
     if (relationResult && Array.isArray(relationResult.data)) {
       for (const relation of relationResult.data as Array<{ fromKey?: string; toKey?: string; relation?: string }>) {
         if (!relation.fromKey || !relation.toKey || !entityIds.has(relation.fromKey) || !entityIds.has(relation.toKey)) continue;

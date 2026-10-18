@@ -2,7 +2,7 @@
 
 Synapse is a personal knowledge workspace for AI conversations. Instead of treating every chat as a blank slate, it turns useful details into linked memories, retrieves relevant context when you ask a question, and lets you explore the connections in a visual graph.
 
-Built with **Next.js, TypeScript, Clerk, FalkorDB, and configurable AI-provider fallback** for the Graph Hacks hackathon.
+Built with **Next.js, TypeScript, signed guest sessions, FalkorDB, and configurable AI-provider fallback** for the Graph Hacks hackathon.
 
 ## Why Synapse?
 
@@ -14,7 +14,7 @@ AI conversations are useful, but important details can get scattered across chat
 - **Explore your knowledge visually** — inspect memory entities and their connections in the graph explorer.
 - **Bring documents into the conversation** — upload supported files, review extraction previews, and send their extracted text to the agent.
 - **Choose an AI provider strategy** — configure Gemini, Groq, and OpenRouter in a preferred order; providers without keys are skipped and eligible failures can fall back to the next provider.
-- **Use a familiar workspace** — responsive chat UI, light/dark themes, conversation history in the browser, and Clerk-powered account controls.
+- **Use a familiar workspace** — responsive chat UI, light/dark themes, conversation history in the browser, with automatic guest-session initialization.
 
 ## Product overview
 
@@ -24,13 +24,13 @@ AI conversations are useful, but important details can get scattered across chat
 | Graph explorer | Visualize stored nodes and relationships, refresh graph data, and select nodes to inspect their details. |
 | Memory layer | Persist useful facts, resolve entities, track relationship provenance, and retrieve bounded graph evidence. |
 | File extraction | Validate files, extract text and structure, and show a preview before the content is sent. |
-| Authentication | Use Clerk sessions; protected server routes derive the data scope from the verified identity. Requests fail closed when Clerk is not configured. |
+| Authentication | Public guest mode uses a signed, HttpOnly, SameSite cookie. Server routes derive scope only from the verified guest identity. |
 
 ## Tech stack
 
 - **Web application:** Next.js App Router, React, TypeScript
 - **Styling:** Tailwind CSS and custom responsive styles
-- **Authentication:** Clerk
+- **Authentication:** HMAC-signed guest sessions
 - **Graph database:** FalkorDB
 - **AI:** Gemini, Groq, and OpenRouter provider configuration
 - **Graph visualization:** `react-force-graph-2d`
@@ -42,7 +42,6 @@ AI conversations are useful, but important details can get scattered across chat
 
 - Node.js 22.13 or newer
 - npm
-- A Clerk application
 - At least one configured chat AI provider
 - A reachable FalkorDB instance for graph-backed memory features
 
@@ -74,8 +73,8 @@ Open `.env.local` and fill in the values described below. Keep this file local: 
 
 | Variable | Required? | Purpose |
 | --- | --- | --- |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Yes for authenticated routes | Clerk publishable key used by the client. |
-| `CLERK_SECRET_KEY` | Yes for authenticated routes | Server-side Clerk secret. Keep it private. |
+| `GUEST_SESSION_SECRET` | Required | At least 32 random server-only characters used to sign seven-day guest cookies. |
+| `PUBLIC_APP_URL` | Optional | Canonical deployed origin used for request-origin validation. |
 | `GEMINI_API_KEY` | Optional if another chat provider is configured; needed for image/scanned-PDF extraction | Gemini chat fallback and vision-based extraction. |
 | `GROQ_API_KEY` | Optional | Enables Groq in the configured provider order. |
 | `OPENROUTER_API_KEY` | Optional | Enables OpenRouter in the configured provider order. |
@@ -91,6 +90,8 @@ Open `.env.local` and fill in the values described below. Keep this file local: 
 | `FALKORDB_PASSWORD` | Depends on deployment | FalkorDB password. Keep it private. |
 | `FALKORDB_GRAPH_NAME` | Optional | Graph name; defaults to `memory_agent`. |
 | `FALKORDB_TLS` | Optional | Set `true` for FalkorDB Cloud/TLS endpoints; defaults to `false` for local plain TCP. |
+| `UPSTASH_REDIS_REST_URL` | Recommended in production | Upstash Redis REST endpoint for durable serverless rate limiting. |
+| `UPSTASH_REDIS_REST_TOKEN` | Recommended in production | Upstash Redis REST token; keep it private. |
 
 Use model identifiers that are currently enabled for your provider account. Do not prefix server-only credentials with `NEXT_PUBLIC_`.
 
@@ -105,7 +106,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Chat workspace:** `/`
 - **Graph explorer:** `/graph`
 
-For Clerk, configure the development origin and sign-in/sign-up settings in your Clerk dashboard. For deployed environments, add the corresponding environment variables in your hosting provider and redeploy. Synapse does not use a shared demo identity: without valid Clerk configuration, protected API requests return a configuration error rather than sharing one user's graph with every visitor.
+For local and Vercel deployments, set `GUEST_SESSION_SECRET` and the graph/AI variables in the hosting environment, then redeploy. The browser automatically creates or resumes a seven-day guest session. Clearing cookies or switching browsers creates a new isolated guest graph. Configure the optional Upstash variables for durable rate limiting across Vercel instances; without them, a bounded in-memory fallback protects a single instance only.
 
 ## Supported uploads
 
@@ -132,9 +133,9 @@ Uploads are processed in memory rather than written to local disk. When you send
 ## How it works
 
 1. You chat with Synapse or send a supported document.
-2. The server validates the request and verifies the Clerk session.
+2. The server validates the request and verifies the signed guest-session cookie.
 3. The configured AI provider generates a response and, when appropriate, extracts entities and relationships.
-4. Useful memories and their provenance are stored in FalkorDB under the verified user's scope.
+4. Useful memories and their provenance are stored in FalkorDB under the verified guest identity's scope.
 5. Later questions retrieve bounded graph evidence to help the agent answer with relevant context.
 6. The graph explorer presents stored entities and relationships so you can inspect how information connects.
 
@@ -154,7 +155,7 @@ Live AI and FalkorDB behavior depends on valid external credentials and reachabl
 
 ## Security and privacy notes
 
-- Clerk is the authentication provider. Protected server routes must verify the session and derive graph ownership from the verified identity.
+- Guest sessions are the public authentication mechanism. Protected server routes verify the signed cookie and derive graph ownership from the verified guest identity.
 - AI and database credentials must remain server-side.
 - Upload-preview tokens are signed, short-lived, and tied to the authenticated user.
 - Graph retrieval is bounded and user-scoped; request-body or query-string user IDs must not be used as authorization.
@@ -176,7 +177,7 @@ app/
   page.tsx         # Chat workspace
   layout.tsx       # App shell and page metadata
 lib/
-  auth.ts          # Shared server-side Clerk identity verification
+  auth.ts          # Shared server-side guest identity verification
   file-extraction.ts
 .env.example       # Safe environment-variable template
 ```

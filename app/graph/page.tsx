@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { ensureGuestSession } from "@/lib/guest-session-client";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false }) as React.ComponentType<Record<string, unknown>>;
 type GraphNode = { id: string; label: string; type: string; x?: number; y?: number };
@@ -21,6 +22,7 @@ export default function GraphPage() {
 
   const loadGraphData = useCallback(async () => {
     try {
+      await ensureGuestSession();
       setLoading(true); setError(null);
       const response = await fetch("/api/graph", { cache: "no-store" });
       if (!response.ok) throw new Error(`Graph API returned status ${response.status}`);
