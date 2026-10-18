@@ -13,6 +13,7 @@ export type FalkorConfig = {
   username: string;
   password: string;
   graphName: string;
+  tls: boolean;
 };
 
 export type MemoryWrite = {
@@ -70,6 +71,7 @@ export function getFalkorConfig(
     username,
     password,
     graphName: env.FALKORDB_GRAPH_NAME || DEFAULT_GRAPH_NAME,
+    tls: env.FALKORDB_TLS?.trim().toLowerCase() === "true",
   };
 }
 

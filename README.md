@@ -24,7 +24,7 @@ AI conversations are useful, but important details can get scattered across chat
 | Graph explorer | Visualize stored nodes and relationships, refresh graph data, and select nodes to inspect their details. |
 | Memory layer | Persist useful facts, resolve entities, track relationship provenance, and retrieve bounded graph evidence. |
 | File extraction | Validate files, extract text and structure, and show a preview before the content is sent. |
-| Authentication | Use Clerk sessions; protected server routes derive the data scope from the verified identity. |
+| Authentication | Use Clerk sessions; protected server routes derive the data scope from the verified identity. Requests fail closed when Clerk is not configured. |
 
 ## Tech stack
 
@@ -90,6 +90,7 @@ Open `.env.local` and fill in the values described below. Keep this file local: 
 | `FALKORDB_USERNAME` | Depends on deployment | FalkorDB username, if required. |
 | `FALKORDB_PASSWORD` | Depends on deployment | FalkorDB password. Keep it private. |
 | `FALKORDB_GRAPH_NAME` | Optional | Graph name; defaults to `memory_agent`. |
+| `FALKORDB_TLS` | Optional | Set `true` for FalkorDB Cloud/TLS endpoints; defaults to `false` for local plain TCP. |
 
 Use model identifiers that are currently enabled for your provider account. Do not prefix server-only credentials with `NEXT_PUBLIC_`.
 
@@ -104,7 +105,7 @@ Open [http://localhost:3000](http://localhost:3000).
 - **Chat workspace:** `/`
 - **Graph explorer:** `/graph`
 
-For Clerk, configure the development origin and sign-in/sign-up settings in your Clerk dashboard. For deployed environments, add the corresponding environment variables in your hosting provider and redeploy.
+For Clerk, configure the development origin and sign-in/sign-up settings in your Clerk dashboard. For deployed environments, add the corresponding environment variables in your hosting provider and redeploy. Synapse does not use a shared demo identity: without valid Clerk configuration, protected API requests return a configuration error rather than sharing one user's graph with every visitor.
 
 ## Supported uploads
 

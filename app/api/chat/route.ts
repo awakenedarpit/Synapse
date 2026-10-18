@@ -137,7 +137,7 @@ export async function POST(request: Request) {
     let retrievalStatus: "not_requested" | "available" | "unavailable" = policy.needsGraphContext ? "unavailable" : "not_requested";
     if (config && (policy.needsGraphContext || policy.persistMemory)) {
       try {
-        db = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: false, connectTimeout: 3000 } });
+        db = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: config.tls, connectTimeout: 3000 } });
         graph = db.selectGraph(config.graphName);
         graphStatus = "available";
       } catch (error) {

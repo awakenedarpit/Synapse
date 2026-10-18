@@ -2,9 +2,6 @@ import { NextResponse } from "next/server";
 import { FalkorDB } from "falkordb";
 import { getFalkorConfig } from "@/lib/persistence";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
 /**
  * Minimal deployment diagnostic. Never returns credentials or host details.
  * This endpoint reports only whether the required environment is configured
@@ -29,7 +26,7 @@ export async function GET() {
       socket: {
         host: config.host,
         port: config.port,
-        tls: process.env.FALKORDB_TLS === "true",
+        tls: config.tls,
         connectTimeout: 8000,
       },
     });

@@ -23,7 +23,7 @@ export async function POST(request: Request) {
     if (!validMemoryId(memoryId)) return NextResponse.json({ error: "A specific memoryId is required." }, { status: 400 });
     if (action === "forget" && body?.confirmed !== true) return NextResponse.json({ error: "Forgetting requires confirmed: true for the specific memoryId." }, { status: 400 });
 
-    db = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: false, connectTimeout: 10000 } });
+    db = await FalkorDB.connect({ username: config.username, password: config.password, socket: { host: config.host, port: config.port, tls: config.tls, connectTimeout: 10000 } });
     const graph = db.selectGraph(config.graphName);
     const now = Date.now();
     if (action === "correct") {

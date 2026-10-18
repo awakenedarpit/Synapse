@@ -28,10 +28,11 @@ function createMockGraph(rows: unknown[] = []) {
   };
 }
 
-test("loads one consistent FalkorDB configuration and graph name", () => {
-  assert.deepEqual(getFalkorConfig({ FALKORDB_HOST: "db", FALKORDB_PORT: "6380", FALKORDB_USERNAME: "user", FALKORDB_PASSWORD: "secret", FALKORDB_GRAPH_NAME: "project_memory" }), {
-    host: "db", port: 6380, username: "user", password: "secret", graphName: "project_memory",
+test("loads one consistent FalkorDB configuration, graph name, and TLS mode", () => {
+  assert.deepEqual(getFalkorConfig({ FALKORDB_HOST: "db", FALKORDB_PORT: "6380", FALKORDB_USERNAME: "user", FALKORDB_PASSWORD: "secret", FALKORDB_GRAPH_NAME: "project_memory", FALKORDB_TLS: "TRUE" }), {
+    host: "db", port: 6380, username: "user", password: "secret", graphName: "project_memory", tls: true,
   });
+  assert.equal(getFalkorConfig({ FALKORDB_HOST: "db", FALKORDB_PORT: "6380", FALKORDB_USERNAME: "user", FALKORDB_PASSWORD: "secret" })?.tls, false);
   assert.equal(getFalkorConfig({ FALKORDB_HOST: "db", FALKORDB_PORT: "not-a-port", FALKORDB_USERNAME: "user", FALKORDB_PASSWORD: "secret" }), null);
 });
 
